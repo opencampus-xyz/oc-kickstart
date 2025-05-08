@@ -1,0 +1,35 @@
+version: "3.9"
+
+services:
+  backend:
+    build: .
+    ports:
+      - 4000:4000
+    depends_on:
+      db:
+        condition: service_healthy
+        restart: true
+    volumes:
+      - ./:/app
+      - /app/node_modules
+    restart: always
+  db:
+    image: postgres
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: always
+    environment:
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_DB: postgres
+    ports:
+      - 5430:5432
+    volumes:
+      - ./sql/init.sql:/docker-entrypoint-initdb.d/init.sql
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

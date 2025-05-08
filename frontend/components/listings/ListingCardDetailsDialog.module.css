@@ -1,0 +1,25 @@
+.detailContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0;
+  > div:first-child {
+    font-weight: 600;
+  }
+}
+
+.aboutHeader {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.aboutContent {
+  margin-bottom: 10px;
+}
+
+.tagsContainer {
+  display: flex;
+  gap: 8px;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}

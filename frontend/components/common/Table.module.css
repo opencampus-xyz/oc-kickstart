@@ -1,0 +1,28 @@
+.searchContainer {
+  flex: 0.7;
+}
+
+.container {
+  display: flex;
+  align-items: center;
+  column-gap: 16px;
+  margin-bottom: 20px;
+  justify-content: space-between;
+}
+
+.pageContainer {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.headerCompContainer {
+  margin-bottom: 20px;
+}
+
+.tableContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}

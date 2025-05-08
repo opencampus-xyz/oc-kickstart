@@ -1,0 +1,12 @@
+.listingCardTitle {
+  margin-bottom: 20px;
+  font-size: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.listingCardContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}

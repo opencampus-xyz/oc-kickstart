@@ -1,0 +1,40 @@
+.headerContainer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin-bottom: 20px;
+  row-gap: 4px;
+}
+
+.detailContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 8px 0;
+  > div:first-child {
+    font-weight: 600;
+  }
+}
+
+.aboutHeader {
+  margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.aboutContent {
+  margin-bottom: 10px;
+}
+
+.achievementCardTitle {
+  margin-bottom: 20px;
+  font-size: 20px;
+  display: flex;
+  justify-content: space-between;
+}
+
+.cardContainer {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}

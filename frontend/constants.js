@@ -1,0 +1,42 @@
+export const ACHIEVEMENT_TYPES = [
+  "Achievement",
+  "ApprenticeshipCertificate",
+  "Assessment",
+  "Assignment",
+  "AssociateDegree",
+  "Award",
+  "Badge",
+  "BachelorDegree",
+  "Certificate",
+  "CertificateOfCompletion",
+  "Certification",
+  "CommunityService",
+  "Competency",
+  "Course",
+  "CoCurricular",
+  "Degree",
+  "Diploma",
+  "DoctoralDegree",
+  "Fieldwork",
+  "GeneralEducationDevelopment",
+  "JourneymanCertificate",
+  "LearningProgram",
+  "License",
+  "Membership",
+  "ProfessionalDoctorate",
+  "QualityAssuranceCredential",
+  "MasterCertificate",
+  "MasterDegree",
+  "MicroCredential",
+  "ResearchDoctorate",
+  "SecondarySchoolDiploma",
+];
+
+export const LISTING_TRIGGER_MODES = ["manual", "auto"];
+
+export const USER_LISTING_STATUSES = [
+  "approved",
+  "declined",
+  "completed",
+  "all",
+];

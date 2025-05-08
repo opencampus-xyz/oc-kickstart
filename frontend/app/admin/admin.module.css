@@ -1,0 +1,15 @@
+.pageContainer {
+  padding: 20px;
+  height: 100%;
+}
+
+.buttonContainer {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.rowButtonsContainer {
+  display: flex;
+  gap: 10px;
+  height: 100%;
+}

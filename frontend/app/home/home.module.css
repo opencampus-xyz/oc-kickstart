@@ -1,0 +1,30 @@
+.listingsContainer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 20px;
+}
+
+.pageContainer {
+  padding: 40px;
+}
+
+.searchContainer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-direction: column;
+}
+
+.paginationContainer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.dropdownsContainer {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
