@@ -52,6 +52,10 @@ Please make sure you have nodeJS, yarn and docker installed, and have at least o
 | NEXT_PUBLIC_SANDBOX_MODE      | Whether the OCID connect is using sandbox mode |
 | NEXT_PUBLIC_AUTH_CLIENT_ID    | Your Auth Client ID for OCID Connect           |
 
+## Remark
+
+If your account is signed up through sandbox mode in this app, please log in https://id.sandbox.opencampus.xyz/ to verify the account is working before proceeding.
+
 ## References
 
 - OCID connect: https://github.com/opencampus-xyz/ocid-connect-js/tree/main
