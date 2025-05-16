@@ -5,6 +5,7 @@ import {
   FormControl,
   InputLabel,
   MenuItem,
+  Popover,
   Select,
   TextField,
   Typography,
@@ -15,7 +16,6 @@ import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import styles from "./CreateEditListing.module.css";
 import { EditVCProperties } from "./EditVCProperties";
-import { SignUpsDialog } from "./SignUpsDialog";
 
 export const CreateEditListing = ({ listing, refetch }) => {
   const fetchWithAuth = useAuthenticatedFetch();
@@ -24,6 +24,7 @@ export const CreateEditListing = ({ listing, refetch }) => {
   const [selectedTriggerMode, setSelectedTriggerMode] = useState(
     listing?.trigger_mode ?? "manual"
   );
+  const [publishPopoverEl, setPublishPopoverEl] = useState(null);
   const isEdit = !!listing;
   const router = useRouter();
 
@@ -85,6 +86,7 @@ export const CreateEditListing = ({ listing, refetch }) => {
         },
         body: JSON.stringify({ id: listing.id }),
       });
+      setPublishPopoverEl(null);
       enqueueSnackbar("Listing published successfully", { variant: "success" });
       refetch();
     } catch (error) {
@@ -147,7 +149,11 @@ export const CreateEditListing = ({ listing, refetch }) => {
             ? `Edit Listing: ${listing.name} (${listing.status})`
             : "Create Listing"}
         </Typography>
-        {isEdit && <SignUpsDialog listingId={listing.id} />}
+        {isEdit && (
+          <Button onClick={() => router.push(`/admin/signups/${listing.id}`)}>
+            View SignUps
+          </Button>
+        )}
       </div>
       <TextField
         label="Name"
@@ -207,11 +213,34 @@ export const CreateEditListing = ({ listing, refetch }) => {
       </FormControl>
       <Button type="submit">Save</Button>
       <Button
-        onClick={publishListing}
+        onClick={(e) => setPublishPopoverEl(e.currentTarget)}
         disabled={!listing || listing.status !== "draft"}
       >
         Publish
       </Button>
+      <Popover
+        onClose={() => setPublishPopoverEl(null)}
+        open={!!publishPopoverEl}
+        anchorEl={publishPopoverEl}
+        anchorOrigin={{ vertical: "top", horizontal: "center" }}
+        transformOrigin={{ vertical: 60, horizontal: "center" }}
+      >
+        <div
+          style={{
+            padding: 16,
+            display: "flex",
+            alignItems: "center",
+            gap: 16,
+            justifyContent: "center",
+            flexDirection: "column",
+          }}
+        >
+          <div>Are you sure to publish this listing?</div>
+          <Button color="primary" variant="contained" onClick={publishListing}>
+            Confirm
+          </Button>
+        </div>
+      </Popover>
       <Button onClick={deleteListing} disabled={!listing}>
         Delete
       </Button>

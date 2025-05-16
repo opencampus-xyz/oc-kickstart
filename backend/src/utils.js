@@ -13,9 +13,12 @@ export const queryWithPagination = async (
   { pageSize, page },
   args
 ) => {
-  const paginatedQueryStr = `${queryStr} LIMIT ${pageSize} OFFSET ${
-    pageSize * page
-  }`;
+  let paginatedQueryStr = queryStr;
+  if (pageSize && page) {
+    paginatedQueryStr = `${queryStr} LIMIT ${pageSize} OFFSET ${
+      pageSize * page
+    }`;
+  }
   const queryResult = await db.query(paginatedQueryStr, args);
   return {
     result: queryResult.rows,

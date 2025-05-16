@@ -1,5 +1,4 @@
 "use client";
-import { SignUpsDialog } from "@/components/admin/SignUpsDialog";
 import { Table } from "@/components/common/Table";
 import { Button } from "@mui/material";
 import { format } from "date-fns";
@@ -55,7 +54,13 @@ export default function Listings() {
       headerName: "Sign Ups",
       width: 200,
       renderCell: (params) => {
-        return <SignUpsDialog listingId={params.row.id} buttonVariant="text" />;
+        return (
+          <Button
+            onClick={() => router.push(`/admin/signups/${params.row.id}`)}
+          >
+            {`View SignUps (${params.row.signups_count})`}
+          </Button>
+        );
       },
     },
   ];
@@ -67,10 +72,8 @@ export default function Listings() {
       description: listing.description,
       created_ts: listing.created_ts,
       published_ts: listing.published_ts,
-      trigger_mode: listing.trigger_mode,
-      max_sign_ups: listing.sign_ups_limit,
       status: listing.status,
-      vc_properties: JSON.stringify(listing.vc_properties),
+      signups_count: listing.signups_count,
     }));
 
   return (

@@ -14,7 +14,13 @@ import { useEffect, useState } from "react";
 import styles from "./CreateEditTagDialog.module.css";
 import { EditVCProperties } from "./EditVCProperties";
 
-export const CreateEditTagDialog = ({ open, onClose, refetch, editingTag }) => {
+export const CreateEditTagDialog = ({
+  open,
+  onClose,
+  refetch,
+  editingTag,
+  setTagToBeAdded,
+}) => {
   const [showVCFormFields, setShowVCFormFields] = useState(
     editingTag?.can_issue_oca
   );
@@ -22,7 +28,7 @@ export const CreateEditTagDialog = ({ open, onClose, refetch, editingTag }) => {
   const fetchWithAuth = useAuthenticatedFetch();
   const upsertTag = async (formData) => {
     try {
-      await fetchWithAuth("/admin/tag", {
+      const response = await fetchWithAuth("/admin/tag", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -34,13 +40,17 @@ export const CreateEditTagDialog = ({ open, onClose, refetch, editingTag }) => {
           method: editingTag ? "update" : "create",
         }),
       });
-      enqueueSnackbar("Tag created successfully", {
+      enqueueSnackbar("Tag updated successfully", {
         variant: "success",
       });
+      if (!editingTag) {
+        const data = await response.json();
+        setTagToBeAdded(data);
+      }
       onClose();
       refetch();
     } catch (error) {
-      enqueueSnackbar("Error creating tag", {
+      enqueueSnackbar("Error updating tag", {
         variant: "error",
       });
     }
@@ -68,7 +78,7 @@ export const CreateEditTagDialog = ({ open, onClose, refetch, editingTag }) => {
         },
       }}
     >
-      <DialogTitle>Create Tag</DialogTitle>
+      <DialogTitle>{editingTag ? "Edit" : "Create"} Tag</DialogTitle>
       <DialogContent className={styles.dialogContent}>
         <TextField
           label="Name"

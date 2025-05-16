@@ -85,7 +85,7 @@ router.get(
       left join listing_tags on listing_tags.listing_id = listings.id
       left join tags on tags.id = listing_tags.tag_id
       where status = 'active' and tags.archived_ts is null
-      ${searchQueryStr.length > 0 ? `and ${searchQueryStr.join(" and ")}` : []}
+      ${searchQueryStr.length > 0 ? `and ${searchQueryStr.join(" and ")}` : ""}
       group by listings.id
       order by listings.created_ts desc
       `;

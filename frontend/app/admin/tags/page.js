@@ -1,4 +1,5 @@
 "use client";
+import { AddTagToListingsDialog } from "@/components/admin/AddTagToListingsDialog";
 import { CreateEditTagDialog } from "@/components/admin/CreateEditTagDialog";
 import { Table } from "@/components/common/Table";
 import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
@@ -9,7 +10,8 @@ import styles from "../admin.module.css";
 
 export default function Tags() {
   const [editingTag, setEditingTag] = useState(null);
-  const [open, setOpen] = useState(false);
+  const [showTagEditModal, setShowTagEditModal] = useState(false);
+  const [tagToBeAdded, setTagToBeAdded] = useState(false);
 
   const fetchWithAuth = useAuthenticatedFetch();
 
@@ -45,7 +47,7 @@ export default function Tags() {
               color="primary"
               onClick={() => {
                 setEditingTag(params.row);
-                setOpen(true);
+                setShowTagEditModal(true);
               }}
             >
               Edit
@@ -77,7 +79,7 @@ export default function Tags() {
     }));
 
   const onClose = () => {
-    setOpen(false);
+    setShowTagEditModal(false);
     setEditingTag(null);
   };
   return (
@@ -92,15 +94,21 @@ export default function Tags() {
           <Button
             variant="contained"
             color="primary"
-            onClick={() => setOpen(true)}
+            onClick={() => setShowTagEditModal(true)}
           >
             Add Tag
           </Button>
           <CreateEditTagDialog
-            open={open}
+            open={showTagEditModal}
             onClose={onClose}
             refetch={refetch}
             editingTag={editingTag}
+            setTagToBeAdded={setTagToBeAdded}
+          />
+          <AddTagToListingsDialog
+            tag={tagToBeAdded}
+            open={!!tagToBeAdded}
+            onClose={() => setTagToBeAdded(false)}
           />
         </div>
       )}

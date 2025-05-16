@@ -49,7 +49,7 @@ router.post(
     };
     const upsertTagQueryStr = `
     INSERT INTO tags (name, description, can_issue_oca, vc_properties) VALUES ($1, $2, $3, $4) 
-    ON CONFLICT (name) DO UPDATE SET description = $2, can_issue_oca = $3, vc_properties = $4
+    ON CONFLICT (name) DO UPDATE SET description = $2, can_issue_oca = $3, vc_properties = $4 RETURNING id, name
       `;
     const tag = await db.query(upsertTagQueryStr, [
       name,
@@ -79,9 +79,12 @@ router.get(
     const { page, pageSize, searchText } = req.query;
     const { result, total } = await queryWithPagination(
       `
-      SELECT *, COUNT(*) OVER() AS total FROM listings
+      SELECT listings.id, listings.name, listings.description, listings.created_ts , listings.published_ts, listings.status, 
+      COUNT(*) OVER() AS total, COUNT(case when ul.listing_id = listings.id THEN 1 END)::int as signups_count FROM listings
+      LEFT JOIN user_listings ul on ul.listing_id = listings.id
       ${searchText?.length ? `WHERE listings.name LIKE '%${searchText}%'` : ""}
-      ORDER BY created_ts DESC
+      GROUP BY listings.id
+      ORDER BY listings.created_ts DESC
       `,
       { page, pageSize }
     );
@@ -334,6 +337,21 @@ router.get(
       { page, pageSize }
     );
     res.json({ data: result, total });
+  })
+);
+
+router.post(
+  "/add-tag",
+  asyncWrapper(async (req, res) => {
+    const { tag, listings } = req.body;
+    for (const listing of listings) {
+      await db.query(
+        "INSERT INTO listing_tags (listing_id, tag_id) VALUES ($1, $2)",
+        [listing, tag]
+      );
+    }
+
+    res.json({ status: "successful" });
   })
 );
 
