@@ -7,6 +7,9 @@ This project uses NextJS, ExpressJS and PostgreSQL.
 
 Please make sure you have nodeJS, yarn and docker installed, and have at least one OCID as the master admin OCID.
 
+If you do not have a developer account yet, please follow the instructions in https://devdocs.educhain.xyz/start-building/open-campus-achievements/integration-guide
+to sign up for a developer account and get the API keys and Client ID, which will be used in the backend environment variables.
+
 ## Installation
 
 ### Backend
