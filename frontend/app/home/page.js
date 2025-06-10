@@ -115,10 +115,7 @@ export default function Home() {
     const pageQuery = targetPage ?? page;
     params.append("page", pageQuery - 1);
     params.append("pageSize", PAGE_SIZE);
-    const validStatuses = ["pending", "declined", "approved", "completed", "all"];
-    if (validStatuses.includes(searchStatus)) {
-      params.append("searchStatus", searchStatus);
-    }
+    params.append("searchStatus", searchStatus);
     return params;
   };
 
