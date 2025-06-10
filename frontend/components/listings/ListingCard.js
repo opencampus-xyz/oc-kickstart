@@ -11,12 +11,10 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
-import LaunchIcon from "@mui/icons-material/Launch";
 import { useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useState } from "react";
 import styles from "./ListingCard.module.css";
-import { ListingCardDetailsDialog } from "./ListingCardDetailsDialog";
 import { ListingShareButton } from "./ListingShareButton";
 
 export const ListingCard = ({ listing, refetch }) => {
@@ -24,7 +22,6 @@ export const ListingCard = ({ listing, refetch }) => {
   const fetchWithAuth = useAuthenticatedFetch();
   const [loading, setLoading] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
-  const [showDetailsDialog, setShowDetailsDialog] = useState(false);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const router = useRouter();
   const signUpForListing = async (e, listingId) => {
@@ -66,7 +63,7 @@ export const ListingCard = ({ listing, refetch }) => {
         key={listing.id}
         sx={{ width: 300 }}
         variant="outlined"
-        onClick={() => setShowDetailsDialog(true)}
+        onClick={() => router.push(`/listings/${listing.id}`)}
         className={styles.listingCardContainer}
       >
         <CardActionArea>
@@ -99,20 +96,6 @@ export const ListingCard = ({ listing, refetch }) => {
               </Button>
             </span>
           </Tooltip>
-          <Tooltip title="Open Listing Page">
-            <span>
-              <IconButton
-                color="secondary"
-                size="small"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  router.push(`/listings/${listing.id}`);
-                }}
-              >
-                <LaunchIcon fontSize="inherit" />
-              </IconButton>
-            </span>
-          </Tooltip>
           <Tooltip title="Share Listing">
             <span>
             <ListingShareButton
@@ -124,11 +107,6 @@ export const ListingCard = ({ listing, refetch }) => {
           </Tooltip>
         </CardActions>
       </Card>
-      <ListingCardDetailsDialog
-        listing={listing}
-        setShowDetailsDialog={setShowDetailsDialog}
-        showDetailsDialog={showDetailsDialog}
-      />
     </>
   );
 };

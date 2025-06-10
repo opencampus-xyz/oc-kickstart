@@ -1,7 +1,6 @@
 "use client";
 import { Loading } from "@/components/common/Loading";
 import { ListingShareButton } from "@/components/listings/ListingShareButton";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useParams, useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
@@ -19,37 +18,51 @@ import { publicFetch } from "@/utils";
 export default function ListingPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { authState, isInitialized } = useOCAuth();
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { isInitialized } = useOCAuth();
+  const { isRegisteredUser } = useUser();
   const [tooltipOpen, setTooltipOpen] = useState(false);
-  const { user, isRegisteredUser } = useUser();
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
   const [showShareDialog, setShowShareDialog] = useState(false);
   const [error, setError] = useState(null);
 
-  
-
   const fetchListingById = async () => {
     try {
-      const listingData = await fetchWithAuth(`/admin/listing/${id}`);
-      if (!listingData.ok) {
-        throw new Error(`Failed to fetch listing: ${listingData.status}`);
+      const response = await publicFetch(`/listings/${id}`, {
+        headers: {
+          'Accept': 'application/json'
+        }
+      });
+      if (!response.ok) {
+        // Get the error text to help with debugging
+        const errorText = await response.text();
+        console.error('Server error response:', {
+          status: response.status,
+          statusText: response.statusText,
+          url: response.url,
+          errorText
+        });
+        
+        if (response.status === 500) {
+          throw new Error('Server error: Unable to fetch listing. Please try again later.');
+        } else if (response.status === 404) {
+          throw new Error('Listing not found');
+        } else {
+          throw new Error(`Failed to fetch listing: ${response.status} ${response.statusText}`);
+        }
       }
-      const listingDetails = await listingData.json();
+      const listingData = await response.json();
       setListing({
-        ...listingDetails,
+        ...listingData,
         sign_up_status: null
       });
     } catch (error) {
       console.error('Error fetching listing:', error);
-      if (error.message.includes('401') || error.message.includes('403')) {
-        enqueueSnackbar("Please log in to view this listing", { variant: "error" });
-        router.push('/login');
-      } else {
-        enqueueSnackbar("Error fetching listing", { variant: "error" });
-        router.push('/home');
-      }
+      enqueueSnackbar(error.message || "Error fetching listing", { 
+        variant: "error",
+        autoHideDuration: 5000
+      });
+      router.push('/home');
     } finally {
       setLoading(false);
     }
@@ -59,10 +72,9 @@ export default function ListingPage() {
     if (!isInitialized) return;
     setLoading(true);
     fetchListingById();
-  }, [id, isInitialized, authState?.isAuthenticated]);
+  }, [id, isInitialized]);
 
   if (!isInitialized || loading) return <Loading />;
-  if (!authState?.isAuthenticated) return null;
   if (!listing) return null;
   
   return (

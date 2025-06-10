@@ -102,6 +102,25 @@ router.get(
 );
 
 router.get(
+  "/listings/:id",
+  asyncWrapper(async (req, res) => {
+    const { id } = req.params;
+    const listingQueryStr = `
+      select listings.*, array_agg(tags.name) as tag_names
+      from listings
+      left join listing_tags on listing_tags.listing_id = listings.id
+      left join tags on tags.id = listing_tags.tag_id
+      where listings.id = $1 and listings.status = 'active' and tags.archived_ts is null
+      group by listings.id
+    `;
+    
+    const result = await db.query(listingQueryStr, [id]);
+    
+    res.json(result.rows[0]);
+  })
+);
+
+router.get(
   "/tags",
   asyncWrapper(async (req, res) => {
     const tags = await db.query("SELECT * FROM tags WHERE archived_ts IS NULL");
