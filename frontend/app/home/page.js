@@ -116,6 +116,7 @@ export default function Home() {
     params.append("page", pageQuery - 1);
     params.append("pageSize", PAGE_SIZE);
     params.append("searchStatus", searchStatus);
+    
     return params;
   };
 
