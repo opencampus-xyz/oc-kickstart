@@ -63,7 +63,7 @@ export const ListingCard = ({ listing, refetch }) => {
         key={listing.id}
         sx={{ width: 300 }}
         variant="outlined"
-        onClick={() => router.push(`/listings/${listing.id}`)}
+        onClick={() => window.open(`/listings/${listing.id}`, "_blank")}
         className={styles.listingCardContainer}
       >
         <CardActionArea>
