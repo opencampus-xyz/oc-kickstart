@@ -7,14 +7,17 @@ import {
   CardActions,
   CardContent,
   Chip,
+  IconButton,
   Tooltip,
   Typography,
 } from "@mui/material";
+import LaunchIcon from "@mui/icons-material/Launch";
 import { useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useState } from "react";
 import styles from "./ListingCard.module.css";
 import { ListingCardDetailsDialog } from "./ListingCardDetailsDialog";
+import { ListingShareButton } from "./ListingShareButton";
 
 export const ListingCard = ({ listing, refetch }) => {
   const { user, isRegisteredUser } = useUser();
@@ -22,6 +25,7 @@ export const ListingCard = ({ listing, refetch }) => {
   const [loading, setLoading] = useState(false);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const [showDetailsDialog, setShowDetailsDialog] = useState(false);
+  const [showShareDialog, setShowShareDialog] = useState(false);
   const router = useRouter();
   const signUpForListing = async (e, listingId) => {
     e.stopPropagation();
@@ -93,6 +97,29 @@ export const ListingCard = ({ listing, refetch }) => {
               >
                 Sign Up
               </Button>
+            </span>
+          </Tooltip>
+          <Tooltip title="Open Listing Page">
+            <span>
+              <IconButton
+                color="secondary"
+                size="small"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  router.push(`/listings/${listing.id}`);
+                }}
+              >
+                <LaunchIcon fontSize="inherit" />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Share Listing">
+            <span>
+            <ListingShareButton
+              listing={listing}
+              showShareDialog={showShareDialog}
+              setShowShareDialog={setShowShareDialog}
+            />
             </span>
           </Tooltip>
         </CardActions>
