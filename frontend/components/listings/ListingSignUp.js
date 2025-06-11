@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
 
-export const ListingSignUp = ({ listing }) => {
+export const ListingSignUp = ({ listing, size = "medium" }) => {
   const [signUpStatus, setSignUpStatus] = useState(null);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const { isRegisteredUser } = useUser();
@@ -44,6 +44,7 @@ export const ListingSignUp = ({ listing }) => {
           variant="contained"
           onClick={handleSignUp}
           disabled={disableSignUp}
+          size={size}
         >
           Sign Up
         </Button>
