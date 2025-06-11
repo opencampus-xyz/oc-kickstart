@@ -17,12 +17,19 @@ export default function Login() {
   const { isInitialized } = useUser();
   const router = useRouter();
   const { authState } = useOCAuth();
+  const params = useSearchParams();
+  const originUrl = params.get("originUrl") ? decodeURIComponent(params.get("originUrl")) : null;
 
   useEffect(() => {
-    if (isInitialized && authState?.isAuthenticated) router.push("/redirect");
-  }, [isInitialized, authState]);
+    if (isInitialized && authState?.isAuthenticated) {
+      if (originUrl) {
+        router.push(originUrl);
+      } else {
+        router.push("/redirect");
+      }
+    }
+  }, [isInitialized, authState, originUrl]);
 
-  const params = useSearchParams();
   const isInvalidLogin = params.get("invalidLogin") === "true";
   const isAdminLogin = params.get("adminLogin") === "true";
 
@@ -46,7 +53,7 @@ export default function Login() {
     <div className={styles.pageContainer}>
       <div className={styles.loginContainer}>
         <div>If you already have an account, please sign in with you OCID</div>
-        <LoginButton state={{ path: "login" }} />
+        <LoginButton state={{ path: "login", originUrl }} />
         {isInvalidLogin && (
           <Alert severity="error">
             Looks like you don't have an account yet, please sign up below
@@ -73,7 +80,7 @@ export default function Login() {
           error={!!error}
           helperText={error}
         />
-        <LoginButton state={{ email, path: "signup" }} />
+        <LoginButton state={{ email, path: "signup", originUrl }} />
       </div>
     </div>
   );
