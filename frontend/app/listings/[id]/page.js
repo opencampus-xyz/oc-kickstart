@@ -3,13 +3,7 @@ import { Loading } from "@/components/common/Loading";
 import { useParams, useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
-import {
-  Chip,
-  Divider,
-  Typography
-} from "@mui/material";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
-import { useUser } from "@/providers/UserProvider";
 import { publicFetch } from "@/utils";
 import { ListingDetails } from "@/components/listings/ListingDetails";
 
@@ -17,12 +11,8 @@ export default function ListingPage() {
   const { id } = useParams();
   const router = useRouter();
   const { isInitialized } = useOCAuth();
-  const { isRegisteredUser } = useUser();
-  const [tooltipOpen, setTooltipOpen] = useState(false);
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [showShareDialog, setShowShareDialog] = useState(false);
-  const [error, setError] = useState(null);
 
   const fetchListingById = async () => {
     try {
@@ -32,7 +22,6 @@ export default function ListingPage() {
         }
       });
       if (!response.ok) {
-        // Get the error text to help with debugging
         const errorText = await response.text();
         console.error('Server error response:', {
           status: response.status,

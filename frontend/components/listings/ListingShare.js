@@ -12,15 +12,43 @@ import FacebookIcon from '@mui/icons-material/Facebook';
 import TwitterIcon from '@mui/icons-material/Twitter';
 import EmailIcon from '@mui/icons-material/Email';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
+import QRCode from 'qrcode';
+import { useEffect, useState, useCallback } from 'react';
 
 export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) => {
+    const [canvas, setCanvas] = useState(null);
     const handleClose = (event) => {
         event.stopPropagation();
         setShowShareDialog(false);
     };
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const listingUrl = `${origin}/listings/${listing.id}`;
-    const qr = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&bgcolor=fff&color=000&format=png&qzone=10&data='${listingUrl}'`
+
+    const canvasRef = useCallback((node) => {
+        if (node !== null) {
+            setCanvas(node);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (showShareDialog && canvas) {
+            try {
+                QRCode.toCanvas(canvas, listingUrl, {
+                    width: 300,
+                    margin: 1,
+                    color: {
+                        dark: '#000000',
+                        light: '#ffffff'
+                    }
+                }, (error) => {
+                    if (error) console.error('QR gen error:', error);
+                });
+            } catch (error) {
+                console.error('QR gen failed:', error);
+            }
+        }
+    }, [showShareDialog, canvas, listingUrl]);
+
     return (
         <Dialog 
             open={showShareDialog} 
@@ -29,8 +57,8 @@ export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) =
         >
             <DialogTitle>Share Listing</DialogTitle>
             <DialogContent>
-                <div>
-                    <img src={qr} alt="QR Code" />
+                <div style={{ textAlign: 'center', marginBottom: '1rem', minHeight: '300px' }}>
+                    <canvas ref={canvasRef} style={{ display: 'block', margin: '0 auto' }} />
                 </div>
                 <div>
                     <TextField
