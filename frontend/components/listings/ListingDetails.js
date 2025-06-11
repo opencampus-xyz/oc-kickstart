@@ -20,7 +20,7 @@ return <div className={styles.pageContainer}>
       <Typography variant="h2">{listing.name}</Typography>
       {listing.vc_properties?.achievementType && (
         <Chip 
-          label={listing.vc_properties.achievementType} 
+          label={listing.vc_properties.achievementType.charAt(0).toUpperCase() + listing.vc_properties.achievementType.slice(1)} 
           color="primary" 
           variant="outlined"
         />
@@ -47,7 +47,7 @@ return <div className={styles.pageContainer}>
       <div className={styles.detailsGrid}>
         <div className={styles.detailItem}>
           <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-          <Typography variant="body1">{listing.status}</Typography>
+          <Typography variant="body1">{listing.status.charAt(0).toUpperCase() + listing.status.slice(1) }</Typography>
         </div>
         <div className={styles.detailItem}>
           <Typography variant="subtitle2" color="text.secondary">Sign Up Limit</Typography>
@@ -103,7 +103,7 @@ return <div className={styles.pageContainer}>
           {listing.vc_properties.achievementType && (
             <div className={styles.detailItem}>
               <Typography variant="subtitle2" color="text.secondary">Achievement Type</Typography>
-              <Typography variant="body1">{listing.vc_properties.achievementType}</Typography>
+              <Typography variant="body1">{listing.vc_properties.achievementType.charAt(0).toUpperCase() + listing.vc_properties.achievementType.slice(1)}</Typography>
             </div>
           )}
           {listing.vc_properties.expireInDays && (

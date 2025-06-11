@@ -1,5 +1,3 @@
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
-import { useUser } from "@/providers/UserProvider";
 import {
   Card,
   CardActionArea,
