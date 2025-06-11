@@ -4,10 +4,17 @@ import { ListingShareButton } from "./ListingShareButton";
 import styles from "./ListingDetails.module.css";
 import { useState } from "react";
 import { ListingSignUp } from "./ListingSignUp";
+import { useRouter } from "next/navigation";
 
 export const ListingDetails = ({ listing, isRegisteredUser }) => {
 const [showShareDialog, setShowShareDialog] = useState(false);
-  return <div className={styles.pageContainer}>
+const router = useRouter();
+
+const handleTagClick = (tagId) => {
+  router.push(`/home?tags=${tagId}`);
+};
+
+return <div className={styles.pageContainer}>
   <div className={styles.listingContainer}>
     <div className={styles.header}>
       <Typography variant="h2">{listing.name}</Typography>
@@ -68,7 +75,16 @@ const [showShareDialog, setShowShareDialog] = useState(false);
         <Typography variant="h6" color="text.secondary">Tags</Typography>
         <div className={styles.tagsContainer}>
           {listing.tag_names.map((tagName, index) => (
-            tagName && <Chip key={index} label={tagName} variant="outlined" sx={{ mr: 1, mb: 1 }} />
+            tagName && listing.tag_ids?.[index] && (
+              <Chip 
+                key={index} 
+                label={tagName} 
+                variant="outlined" 
+                sx={{ mr: 1, mb: 1, cursor: 'pointer' }}
+                onClick={() => handleTagClick(listing.tag_ids[index])}
+                clickable
+              />
+            )
           ))}
         </div>
       </div>

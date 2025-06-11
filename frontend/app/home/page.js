@@ -19,13 +19,19 @@ import { capitalize, keyBy } from "lodash";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import styles from "./home.module.css";
+import { useSearchParams, useRouter } from "next/navigation";
 
 const PAGE_SIZE = 9;
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTags, setSearchTags] = useState([]);
+  const [searchTags, setSearchTags] = useState(() => {
+    const tagsParam = searchParams.get('tags');
+    return tagsParam ? tagsParam.split(',') : [];
+  });
   const [searchText, setSearchText] = useState();
   const [searchStatus, setSearchStatus] = useState("all");
   const [page, setPage] = useState(1);
@@ -90,9 +96,33 @@ export default function Home() {
     fetchListings();
   }, [isRegisteredUser, searchTags, page, searchStatus]);
 
+  useEffect(() => {
+    const tagsParam = searchParams.get('tags');
+    if (tagsParam === null) {
+      setSearchTags([]);
+    } else {
+      const newTags = tagsParam ? tagsParam.split(',') : [];
+      if (JSON.stringify(newTags) !== JSON.stringify(searchTags)) {
+        setSearchTags(newTags);
+      }
+    }
+  }, [searchParams]);
+
   const handleChangeTags = (e) => {
+    const newTags = e.target.value;
     setPage(1);
-    setSearchTags(e.target.value);
+    setSearchTags(newTags);
+    
+    const params = new URLSearchParams(window.location.search);
+    if (newTags.length > 0) {
+      params.set('tags', newTags.join(','));
+    } else {
+      params.delete('tags');
+    }
+    
+    if (params.toString() || window.location.search) {
+      router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
+    }
   };
 
   const handleChangeStatus = (e) => {
@@ -146,7 +176,10 @@ export default function Home() {
                 renderValue={(selected) => (
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                     {selected.map((value) => (
-                      <Chip key={value} label={tagsKeyById[value].name} />
+                      <Chip 
+                        key={value} 
+                        label={tagsKeyById[value]?.name || `Tag ${value}`} 
+                      />
                     ))}
                   </Box>
                 )}
