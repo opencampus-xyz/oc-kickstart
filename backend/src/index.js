@@ -14,7 +14,7 @@ const app = express();
 
 setInterval(() => {
   VCIssuerService.getInstance().run();
-}, secondsToMilliseconds(parseInt(process.env.VC_ISSUANCE_INTERVAL)));
+}, secondsToMilliseconds(parseInt(process.env.VC_ISSUANCE_INTERVAL)>30?30:parseInt(process.env.VC_ISSUANCE_INTERVAL)));
 
 app.use(cors());
 app.use(express.json());
