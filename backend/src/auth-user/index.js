@@ -51,7 +51,8 @@ router.get(
     const listingsQueryStr = `
     SELECT listings.*, 
     user_listings.status as sign_up_status, 
-    array_agg(tags.name) as tag_names, 
+    array_agg(tags.name) as tag_names,
+    array_agg(tags.id) as tag_ids,
     count(*) OVER() AS total
     FROM listings
     LEFT JOIN user_listings on listings.id = user_listings.listing_id

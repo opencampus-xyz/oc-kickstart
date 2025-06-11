@@ -80,7 +80,10 @@ router.get(
       searchQueryStr.push(`listings.name like '%${searchTitle}%'`);
     }
     const listingsQueryStr = `
-      select listings.*, array_agg(tags.name) as tag_names, count(*) OVER() AS total 
+      select listings.*, 
+      array_agg(tags.name) as tag_names,
+      array_agg(tags.id) as tag_ids,
+      count(*) OVER() AS total 
       from listings
       left join listing_tags on listing_tags.listing_id = listings.id
       left join tags on tags.id = listing_tags.tag_id
