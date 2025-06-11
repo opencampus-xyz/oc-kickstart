@@ -107,8 +107,8 @@ router.get(
     const { id } = req.params;
     const listingQueryStr = `
       select listings.*, 
-        array_agg(tags.name) as tag_names,
-        array_agg(tags.id) as tag_ids
+      array_agg(tags.name) as tag_names,
+      array_agg(tags.id) as tag_ids
       from listings
       left join listing_tags on listing_tags.listing_id = listings.id
       left join tags on tags.id = listing_tags.tag_id
