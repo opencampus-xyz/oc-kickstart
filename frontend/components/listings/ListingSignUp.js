@@ -41,7 +41,7 @@ export const ListingSignUp = ({ listing, size = "medium" }) => {
     >
       <span>
         <Button
-          variant="contained"
+          variant="outlined"
           onClick={handleSignUp}
           disabled={disableSignUp}
           size={size}
