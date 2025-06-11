@@ -157,4 +157,19 @@ router.get(
   })
 );
 
+router.get(
+  "/listing-signup-status/:listingId",
+  asyncWrapper(async (req, res) => {
+    const { listingId } = req.params;
+    const signUpStatusQueryStr = `
+      select status as sign_up_status
+      from user_listings
+      where user_id = $1 and listing_id = $2
+      limit 1
+    `;
+    const result = await db.query(signUpStatusQueryStr, [req.user.id, listingId]);
+    res.json({ sign_up_status: result.rows[0]?.sign_up_status || null });
+  })
+);
+
 export default router;

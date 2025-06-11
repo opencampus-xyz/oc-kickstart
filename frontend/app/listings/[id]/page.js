@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { publicFetch } from "@/utils";
 import { ListingDetails } from "@/components/listings/ListingDetails";
+import { useUser } from "@/providers/UserProvider";
 
 export default function ListingPage() {
   const { id } = useParams();
@@ -13,6 +14,8 @@ export default function ListingPage() {
   const { isInitialized } = useOCAuth();
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
+  const { isRegisteredUser } = useUser();
+
 
   const fetchListingById = async () => {
     try {
@@ -65,6 +68,6 @@ export default function ListingPage() {
   if (!listing) return null;
   
   return (
-    <ListingDetails listing={listing} />
+    <ListingDetails listing={listing} isRegisteredUser={isRegisteredUser} />
   );
 }

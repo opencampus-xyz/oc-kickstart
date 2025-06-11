@@ -3,8 +3,9 @@ import { Chip, Divider, Typography } from "@mui/material";
 import { ListingShareButton } from "./ListingShareButton";
 import styles from "./ListingDetails.module.css";
 import { useState } from "react";
+import { ListingSignUp } from "./ListingSignUp";
 
-export const ListingDetails = ({ listing }) => {
+export const ListingDetails = ({ listing, isRegisteredUser }) => {
 const [showShareDialog, setShowShareDialog] = useState(false);
   return <div className={styles.pageContainer}>
   <div className={styles.listingContainer}>
@@ -22,6 +23,7 @@ const [showShareDialog, setShowShareDialog] = useState(false);
         showShareDialog={showShareDialog}
         setShowShareDialog={setShowShareDialog}
       />
+      <span style={{ marginLeft: "auto" }}>{isRegisteredUser ? <ListingSignUp listing={listing} /> : ""}</span>
     </div>
 
     <Divider sx={{ my: 2 }} />
