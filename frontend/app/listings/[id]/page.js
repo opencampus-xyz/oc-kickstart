@@ -19,11 +19,7 @@ export default function ListingPage() {
 
   const fetchListingById = async () => {
     try {
-      const response = await publicFetch(`/listings/${id}`, {
-        headers: {
-          'Accept': 'application/json'
-        }
-      });
+      const response = await publicFetch(`/listings/${id}`);
       if (!response.ok) {
         const errorText = await response.text();
         console.error('Server error response:', {
@@ -41,9 +37,9 @@ export default function ListingPage() {
           throw new Error(`Failed to fetch listing: ${response.status} ${response.statusText}`);
         }
       }
-      const listingData = await response.json();
+      const data = await response.json();
       setListing({
-        ...listingData,
+        ...data,
         sign_up_status: null
       });
     } catch (error) {
@@ -59,7 +55,6 @@ export default function ListingPage() {
   };
 
   useEffect(() => {
-    if (!isInitialized) return;
     setLoading(true);
     fetchListingById();
   }, [id, isInitialized]);

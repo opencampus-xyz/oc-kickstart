@@ -113,8 +113,15 @@ router.get(
       where listings.id = $1 and listings.status = 'active' and tags.archived_ts is null
       group by listings.id
     `;
-    
     const result = await db.query(listingQueryStr, [id]);
+    
+    if (!result?.rows?.[0]) {
+      res.status(404).json({ 
+        error: 'Listing not found',
+        message: 'The requested listing could not be found or is not active'
+      });
+      return;
+    }
     
     res.json(result.rows[0]);
   })

@@ -13,10 +13,10 @@ import TwitterIcon from '@mui/icons-material/Twitter';
 import EmailIcon from '@mui/icons-material/Email';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import QRCode from 'qrcode';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState } from 'react';
 
 export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) => {
-    const [canvas, setCanvas] = useState(null);
+    const [qrCodeUrl, setQrCodeUrl] = useState('');
     const handleClose = (event) => {
         event.stopPropagation();
         setShowShareDialog(false);
@@ -24,30 +24,13 @@ export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) =
     const origin = typeof window !== "undefined" ? window.location.origin : "";
     const listingUrl = `${origin}/listings/${listing.id}`;
 
-    const canvasRef = useCallback((node) => {
-        if (node !== null) {
-            setCanvas(node);
-        }
-    }, []);
-
     useEffect(() => {
-        if (showShareDialog && canvas) {
-            try {
-                QRCode.toCanvas(canvas, listingUrl, {
-                    width: 300,
-                    margin: 1,
-                    color: {
-                        dark: '#000000',
-                        light: '#ffffff'
-                    }
-                }, (error) => {
-                    if (error) console.error('QR gen error:', error);
-                });
-            } catch (error) {
-                console.error('QR gen failed:', error);
-            }
-        }
-    }, [showShareDialog, canvas, listingUrl]);
+        if (!showShareDialog) return;
+        
+        QRCode.toDataURL(listingUrl, { width: 300, margin: 1, color: { dark: '#000000', light: '#ffffff' } })
+        .then(url => setQrCodeUrl(url))
+        .catch(error => console.error('QR code generation failed:', error));
+    }, [showShareDialog, listingUrl]);
 
     return (
         <Dialog 
@@ -58,7 +41,7 @@ export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) =
             <DialogTitle>Share Listing</DialogTitle>
             <DialogContent>
                 <div style={{ textAlign: 'center', marginBottom: '1rem', minHeight: '300px' }}>
-                    <canvas ref={canvasRef} style={{ display: 'block', margin: '0 auto' }} />
+                    <img src={qrCodeUrl} alt="QR Code" style={{ display: 'block', margin: '0 auto', maxWidth: '300px' }} />
                 </div>
                 <div>
                     <TextField
@@ -119,7 +102,7 @@ export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) =
                         <IconButton onClick={() => {
                             window.open(`https://wa.me/?text=${listingUrl}`, "_blank");
                     }}>
-                        <WhatsAppIcon />
+                            <WhatsAppIcon />
                         </IconButton>
                         </span>
                     </Tooltip>
