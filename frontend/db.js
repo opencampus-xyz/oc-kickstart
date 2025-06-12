@@ -1,0 +1,498 @@
+"use client";
+import { 
+    initDatabase, 
+    createUserDocument, 
+    createListingDocument, 
+    createTagDocument, 
+    createAdminConfigsDocument,
+    UserListingStatus, 
+    ListingStatus, 
+    ListingTriggerMode,
+    VcIssueJobStatus
+} from '@/db/DBsetup';
+
+export class DBService {
+    constructor() {
+        this.db = null;
+        this.initPromise = this.init();
+    }
+
+    async init() {
+        this.db = await initDatabase();
+        return this.db;
+    }
+
+    // ===== backend/src/index.js endpoints =====
+    // Corresponds to backend/src/index.js POST /signup and backend/src/signup.js signup()
+    async createUser(userData) {
+        const tx = this.db.transaction(['users'], 'readwrite');
+        const store = tx.objectStore('users');
+        const userDoc = createUserDocument(userData);
+        await store.add(userDoc);
+        return userDoc;
+    }
+    
+    // Corresponds to backend/src/index.js GET /user and backend/src/auth-user/index.js registeredUserMiddleware()
+    async getUserByOCId(ocId) {
+        const tx = this.db.transaction(['users'], 'readonly');
+        const store = tx.objectStore('users');
+        const index = store.index('oc_id');
+        return await index.get(ocId);
+    }
+
+    // ===== backend/src/auth-user/index.js endpoints =====
+    // Corresponds to backend/src/auth-user/index.js POST /update-username
+    async updateUsername(userId, username) {
+        const tx = this.db.transaction(['users'], 'readwrite');
+        const store = tx.objectStore('users');
+        const user = await store.get(userId);
+        user.name = username;
+        await store.put(user);
+    }
+
+    // Corresponds to backend/src/auth-user/index.js GET /sign-ups
+    async getUserSignups({ page = 0, pageSize = 10, searchText }) {
+        const tx = this.db.transaction(['user_listings', 'listings', 'vc_issue_jobs'], 'readonly');
+        const userListingsStore = tx.objectStore('user_listings');
+        const listingsStore = tx.objectStore('listings');
+        const vcJobsStore = tx.objectStore('vc_issue_jobs');
+        const userListingsIndex = userListingsStore.index('user_id');
+        
+        return new Promise((resolve, reject) => {
+            const request = userListingsIndex.openCursor();
+            const results = [];
+            let count = 0;
+            
+            request.onsuccess = async (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const signup = cursor.value;
+                    const listing = await listingsStore.get(signup.listing_id);
+                    
+                    if (listing && this.matchesUserSignupFilters(listing, { searchText })) {
+                        const vcJobs = [];
+                        const vcJobsCursor = await vcJobsStore.openCursor();
+                        while (vcJobsCursor) {
+                            const job = vcJobsCursor.value;
+                            if (job.user_id === signup.user_id && job.listing_id === signup.listing_id) {
+                                vcJobs.push(job);
+                            }
+                            await vcJobsCursor.continue();
+                        }
+                        
+                        const vcCount = vcJobs.length;
+                        const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
+                        const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
+                        
+                        const vcStatus = vcPendingCount > 0 ? VcIssueJobStatus.PENDING : 
+                                       vcFailedCount > 0 ? VcIssueJobStatus.FAILED : 
+                                       vcCount > 0 ? VcIssueJobStatus.SUCCESS : null;
+
+                        if (count >= page * pageSize && count < (page + 1) * pageSize) {
+                            results.push({
+                                ...signup,
+                                listing_name: listing.name,
+                                vc_count: vcCount,
+                                vc_pending_count: vcPendingCount,
+                                vc_failed_count: vcFailedCount,
+                                vc_issue_status: vcStatus
+                            });
+                        }
+                        count++;
+                    }
+                    cursor.continue();
+                } else {
+                    resolve({ data: results, total: count });
+                }
+            };
+
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
+        });
+    }
+
+    // Corresponds to backend/src/auth-user/index.js POST /signup-for-listing
+    async signupForListing(userId, listingId) {
+        const tx = this.db.transaction(['users', 'listings', 'user_listings'], 'readwrite');
+        const userStore = tx.objectStore('users');
+        const listingStore = tx.objectStore('listings');
+        const userListingsStore = tx.objectStore('user_listings');
+
+        const existingSignup = await userListingsStore.get([userId, listingId]);
+        if (existingSignup) {
+            throw new Error("You've already signed up for this listing");
+        }
+
+        const listing = await listingStore.get(listingId);
+        const signupCount = listing.signups.filter(([_, status]) => 
+            status === UserListingStatus.APPROVED || status === UserListingStatus.PENDING
+        ).length;
+        
+        if (listing.sign_ups_limit && signupCount >= listing.sign_ups_limit) {
+            throw new Error("Listing signups limit reached");
+        }
+
+        const signup = {
+            user_id: userId,
+            listing_id: listingId,
+            status: UserListingStatus.PENDING,
+            created_ts: new Date().toISOString(),
+            last_modified_ts: new Date().toISOString()
+        };
+        await userListingsStore.add(signup);
+
+        const user = await userStore.get(userId);
+        user.signups.push({ 
+            listing_id: listingId, 
+            status: UserListingStatus.PENDING, 
+            created_ts: signup.created_ts 
+        });
+        await userStore.put(user);
+
+        listing.signups.push([userId, UserListingStatus.PENDING]);
+        await listingStore.put(listing);
+
+        return signup;
+    }
+
+    // ===== backend/src/admin/index.js endpoints =====
+    // Corresponds to backend/src/admin/index.js GET /listing/:id
+    async getListingById(id) {
+        const tx = this.db.transaction(['listings', 'listing_tags'], 'readonly');
+        const listingStore = tx.objectStore('listings');
+        const listingTagsStore = tx.objectStore('listing_tags');
+        
+        const listing = await listingStore.get(id);
+        if (!listing) return null;
+        
+        const tags = await listingTagsStore.index('listing_id').getAll(id);
+        return {
+            ...listing,
+            tags: tags.map(t => t.tag_id)
+        };
+    }
+
+    // Corresponds to backend/src/admin/index.js POST /listing/create
+    async createListing(listingData) {
+        const tx = this.db.transaction(['listings', 'listing_tags'], 'readwrite');
+        const listingStore = tx.objectStore('listings');
+        const listingTagsStore = tx.objectStore('listing_tags');
+        
+        try {
+            const listingDoc = createListingDocument(listingData);
+            await listingStore.add(listingDoc);
+
+            for (const tagId of listingData.tags) {
+                await listingTagsStore.add({
+                    id: crypto.randomUUID(),
+                    listing_id: listingDoc.id,
+                    tag_id: tagId,
+                    created_ts: new Date().toISOString(),
+                    last_modified_ts: new Date().toISOString()
+                });
+            }
+            return listingDoc;
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Corresponds to backend/src/admin/index.js POST /listing/update
+    async updateListing(id, listingData) {
+        const tx = this.db.transaction(['listings', 'listing_tags'], 'readwrite');
+        const listingStore = tx.objectStore('listings');
+        const listingTagsStore = tx.objectStore('listing_tags');
+        
+        try {
+            const listing = await listingStore.get(id);
+            if (!listing) {
+                throw new Error("Listing not found");
+            }
+
+            listing.name = listingData.name;
+            listing.description = listingData.description;
+            listing.trigger_mode = listingData.triggerMode.toLowerCase();
+            listing.sign_ups_limit = parseInt(listingData.maxSignUps);
+            listing.vc_properties = {
+                title: listingData.name,
+                achievementType: listingData.achievementType,
+                expireInDays: listingData.expireInDays ? parseInt(listingData.expireInDays) : null
+            };
+            listing.last_modified_ts = new Date().toISOString();
+            
+            await listingStore.put(listing);
+
+            const existingTags = await listingTagsStore.index('listing_id').getAll(id);
+            for (const tag of existingTags) {
+                await listingTagsStore.delete(tag.id);
+            }
+
+            for (const tagId of listingData.tags) {
+                await listingTagsStore.add({
+                    id: crypto.randomUUID(),
+                    listing_id: id,
+                    tag_id: tagId,
+                    created_ts: new Date().toISOString(),
+                    last_modified_ts: new Date().toISOString()
+                });
+            }
+
+            return { id };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // Corresponds to backend/src/admin/index.js POST /listing/publish
+    async updateListingStatus(id, status) {
+        const tx = this.db.transaction(['listings'], 'readwrite');
+        const store = tx.objectStore('listings');
+        const listing = await store.get(id);
+        
+        if (listing) {
+            listing.status = status;
+            if (status === ListingStatus.ACTIVE) {
+                listing.published_ts = new Date().toISOString();
+            } else if (status === ListingStatus.DELETED) {
+                listing.deleted_ts = new Date().toISOString();
+            }
+            await store.put(listing);
+        }
+        return listing;
+    }
+
+    // Corresponds to backend/src/admin/index.js POST /listing/signups/update-status
+    async updateSignupStatus(userId, listingId, status) {
+        const tx = this.db.transaction(['users', 'listings', 'user_listings'], 'readwrite');
+        const userStore = tx.objectStore('users');
+        const listingStore = tx.objectStore('listings');
+        const userListingsStore = tx.objectStore('user_listings');
+
+        const signup = await userListingsStore.get([userId, listingId]);
+        if (!signup) {
+            throw new Error("Signup not found");
+        }
+        signup.status = status;
+        signup.last_modified_ts = new Date().toISOString();
+        await userListingsStore.put(signup);
+
+        const user = await userStore.get(userId);
+        const userSignup = user.signups.find(s => s.listing_id === listingId);
+        if (userSignup) {
+            userSignup.status = status;
+            userSignup.last_modified_ts = signup.last_modified_ts;
+            await userStore.put(user);
+        }
+
+        const listing = await listingStore.get(listingId);
+        const listingSignupIndex = listing.signups.findIndex(([uid, _]) => uid === userId);
+        if (listingSignupIndex !== -1) {
+            listing.signups[listingSignupIndex][1] = status;
+            await listingStore.put(listing);
+        }
+
+        if (listing.trigger_mode === ListingTriggerMode.AUTO && status === UserListingStatus.COMPLETED) {
+            await this.createVCIssueJob(userId, listingId);
+        }
+
+        return signup;
+    }
+
+    // Corresponds to backend/src/admin/index.js GET /tags
+    async getTags() {
+        const tx = this.db.transaction(['tags'], 'readonly');
+        const store = tx.objectStore('tags');
+        const index = store.index('archived_ts');
+        
+        return new Promise((resolve, reject) => {
+            const request = index.getAll(null);
+            
+            request.onsuccess = (event) => {
+                const tags = event.target.result || [];
+                resolve(tags);
+            };
+            
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
+        });
+    }
+
+    // Corresponds to backend/src/admin/index.js POST /tag
+    async createTag(tagData) {
+        const tx = this.db.transaction(['tags'], 'readwrite');
+        const store = tx.objectStore('tags');
+        
+        const index = store.index('name');
+        const existingTag = await index.get(tagData.name);
+        if (existingTag) {
+            throw new Error("Tag already exists");
+        }
+
+        const tagDoc = createTagDocument(tagData);
+        await store.add(tagDoc);
+        return tagDoc;
+    }
+
+    // Corresponds to backend/src/admin/index.js POST /add-tag
+    async addTagToListings(tagId, listingIds) {
+        const tx = this.db.transaction(['listing_tags'], 'readwrite');
+        const store = tx.objectStore('listing_tags');
+        
+        try {
+            for (const listingId of listingIds) {
+                await store.add({
+                    id: crypto.randomUUID(),
+                    listing_id: listingId,
+                    tag_id: tagId,
+                    created_ts: new Date().toISOString(),
+                    last_modified_ts: new Date().toISOString()
+                });
+            }
+            return { status: "successful" };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    // ===== backend/src/public/index.js endpoints =====
+    // Corresponds to backend/src/public/index.js GET /listings
+    async getListings({ page = 0, pageSize = 10, searchText, searchTags, searchStatus, includeUserSignups = false, userId = null }) {
+        const tx = this.db.transaction(['listings'], 'readonly');
+        const store = tx.objectStore('listings');
+        const index = store.index('name');
+        
+        return new Promise((resolve, reject) => {
+            const request = index.openCursor();
+            const results = [];
+            let count = 0;
+            
+            request.onsuccess = (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const listing = cursor.value;
+                    if (this.matchesListingFilters(listing, { searchText, searchTags, searchStatus })) {
+                        if (count >= page * pageSize && count < (page + 1) * pageSize) {
+                            if (includeUserSignups && userId) {
+                                listing.sign_up_status = this.getUserSignupStatus(listing, userId);
+                            }
+                            results.push(listing);
+                        }
+                        count++;
+                    }
+                    cursor.continue();
+                } else {
+                    resolve({ data: results, total: count });
+                }
+            };
+
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
+        });
+    }
+
+    // Corresponds to backend/src/public/achievements/:ocid
+    async getAchievementsByOCId(ocId, { page = 0, pageSize = 10 }) {
+        const tx = this.db.transaction(['user_listings', 'listings', 'vc_issue_jobs'], 'readonly');
+        const userListingsStore = tx.objectStore('user_listings');
+        const listingsStore = tx.objectStore('listings');
+        const vcJobsStore = tx.objectStore('vc_issue_jobs');
+        const index = userListingsStore.index('user_id');
+        
+        return new Promise((resolve, reject) => {
+            const request = index.openCursor();
+            const results = [];
+            let count = 0;
+            
+            request.onsuccess = async (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const signup = cursor.value;
+                    if (signup.status === UserListingStatus.COMPLETED) {
+                        const listing = await listingsStore.get(signup.listing_id);
+                        const vcJobs = [];
+                        const vcJobsCursor = await vcJobsStore.openCursor();
+                        while (vcJobsCursor) {
+                            const job = vcJobsCursor.value;
+                            if (job.user_id === signup.user_id && job.listing_id === signup.listing_id) {
+                                vcJobs.push(job);
+                            }
+                            await vcJobsCursor.continue();
+                        }
+                        const vcJob = vcJobs[0];
+                        
+                        if (count >= page * pageSize && count < (page + 1) * pageSize) {
+                            results.push({
+                                listing_name: listing.name,
+                                listing_id: listing.id,
+                                completed_ts: signup.last_modified_ts,
+                                vc_status: vcJob?.status || null,
+                                vc_properties: listing.vc_properties
+                            });
+                        }
+                        count++;
+                    }
+                    cursor.continue();
+                } else {
+                    resolve({ data: results, total: count });
+                }
+            };
+
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
+        });
+    }
+
+    // Corresponds to backend/src/create-vc-issue-jobs.js
+    async createVCIssueJob(userId, listingId) {
+        const tx = this.db.transaction(['vc_issue_jobs'], 'readwrite');
+        const store = tx.objectStore('vc_issue_jobs');
+        
+        const job = {
+            id: crypto.randomUUID(),
+            user_id: userId,
+            listing_id: listingId,
+            status: 'pending',
+            retry_count: 0,
+            created_ts: new Date().toISOString(),
+            last_modified_ts: new Date().toISOString()
+        };
+        
+        await store.add(job);
+        return job;
+    }
+
+    matchesListingFilters(listing, { searchText, searchTags, searchStatus }) {
+        if (searchText && !listing.name.toLowerCase().includes(searchText.toLowerCase())) {
+            return false;
+        }
+        if (searchTags && !searchTags.every(tagId => listing.tags.includes(tagId))) {
+            return false;
+        }
+        if (searchStatus && searchStatus !== 'all') {
+            const userSignup = listing.signups.find(([_, status]) => status === searchStatus);
+            if (!userSignup) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    getUserSignupStatus(listing, userId) {
+        const signup = listing.signups.find(([uid, _]) => uid === userId);
+        return signup ? signup[1] : null;
+    }
+
+    matchesUserSignupFilters(listing, { searchText }) {
+        if (searchText && !listing.name.toLowerCase().includes(searchText.toLowerCase())) {
+            return false;
+        }
+        return true;
+    }
+}
+
+const dbService = new DBService();
+export default dbService; 

@@ -20,7 +20,9 @@ export const ListingCardDetailsDialog = ({
       maxWidth="sm"
     >
       <DialogTitle>
-        {listing.name} <Chip label={listing.vc_properties.achievementType} />
+        {listing.name} {listing.vc_properties?.achievementType && (
+          <Chip label={listing.vc_properties.achievementType} />
+        )}
       </DialogTitle>
       <DialogContent>
         <div className={styles.aboutHeader}>About:</div>
@@ -31,10 +33,11 @@ export const ListingCardDetailsDialog = ({
           <div>{listing.sign_ups_limit}</div>
         </div>
         <div className={styles.tagsContainer}>
-          {listing.tag_names.map((tagName, index) => {
+          {listing.tag_names?.map((tagName, index) => {
             if (tagName) {
               return <Chip key={index} label={tagName} variant="outlined" />;
             }
+            return null;
           })}
         </div>
       </DialogContent>
