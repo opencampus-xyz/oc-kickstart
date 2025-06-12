@@ -1,5 +1,8 @@
 import { addDays } from "date-fns";
 import db from "./db.js";
+import { v5 as uuidv5 } from 'uuid';
+
+const UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8';
 
 export const createVCIssueJobs = async (userId, listingId) => {
   // get listing, tags and user details to create the payload
@@ -42,6 +45,9 @@ export const createVCIssueJobs = async (userId, listingId) => {
   };
 
   const generateOCAPayload = (vcProperties, description, identifier, title) => {
+    const uniqueString = `${userId}-${identifier}`;
+    const issuer_ref_id = uuidv5(uniqueString, UUID_NAMESPACE);
+
     return {
       holderOcId: userDetails.ocId,
       credentialPayload: {
@@ -51,6 +57,7 @@ export const createVCIssueJobs = async (userId, listingId) => {
           ? addDays(now, vcProperties.expireInDays)
           : undefined,
         description,
+        issuer_ref_id,
         credentialSubject: {
           name: userDetails.name,
           email: userDetails.email,
