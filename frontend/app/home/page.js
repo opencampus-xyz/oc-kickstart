@@ -28,10 +28,7 @@ export default function Home() {
   const router = useRouter();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTags, setSearchTags] = useState(() => {
-    const tagsParam = searchParams.get('tags');
-    return tagsParam ? tagsParam.split(',') : [];
-  });
+  const [searchTags, setSearchTags] = useState([]);
   const [searchText, setSearchText] = useState();
   const [searchStatus, setSearchStatus] = useState("all");
   const [page, setPage] = useState(1);
@@ -114,7 +111,7 @@ export default function Home() {
     setSearchTags(newTags);
     
     const params = new URLSearchParams(window.location.search);
-    if (newTags.length > 0) {
+    if (newTags.length >= 1) {
       params.set('tags', newTags.join(','));
     } else {
       params.delete('tags');

@@ -5,10 +5,12 @@ import styles from "./ListingDetails.module.css";
 import { useState } from "react";
 import { ListingSignUp } from "./ListingSignUp";
 import { useRouter } from "next/navigation";
+import { useUser } from "@/providers/UserProvider";
 
-export const ListingDetails = ({ listing, isRegisteredUser }) => {
+export const ListingDetails = ({ listing }) => {
 const [showShareDialog, setShowShareDialog] = useState(false);
 const router = useRouter();
+const { isRegisteredUser } = useUser();
 
 const handleTagClick = (tagId) => {
   router.push(`/home?tags=${tagId}`);

@@ -14,6 +14,7 @@ import EmailIcon from '@mui/icons-material/Email';
 import WhatsAppIcon from '@mui/icons-material/WhatsApp';
 import QRCode from 'qrcode';
 import { useEffect, useState } from 'react';
+import styles from './ListingShare.module.css';
 
 export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) => {
     const [qrCodeUrl, setQrCodeUrl] = useState('');
@@ -40,10 +41,10 @@ export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) =
         >
             <DialogTitle>Share Listing</DialogTitle>
             <DialogContent>
-                <div style={{ textAlign: 'center', marginBottom: '1rem', minHeight: '300px' }}>
-                    <img src={qrCodeUrl} alt="QR Code" style={{ display: 'block', margin: '0 auto', maxWidth: '300px' }} />
+                <div className={styles.qrCodeContainer}>
+                    <img src={qrCodeUrl} alt="QR Code" className={styles.qrCodeImage} />
                 </div>
-                <div>
+                <div className={styles.textFieldContainer}>
                     <TextField
                         id="outlined-read-only-input"
                         defaultValue={listingUrl}
@@ -55,12 +56,12 @@ export const ListingShare = ({ listing, showShareDialog, setShowShareDialog }) =
                         }}
                     />
                 </div>
-                <div>
+                <div className={styles.copyButtonContainer}>
                     <Button variant="contained" color="primary" fullWidth={true} onClick={() => {
                         navigator.clipboard.writeText(listingUrl);
                     }}>Copy Link</Button>
                 </div>
-                <div>
+                <div className={styles.shareButtonsContainer}>
                     <Tooltip title="Bookmark">
                         <span>
                         <IconButton onClick={() => {

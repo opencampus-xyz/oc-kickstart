@@ -1,0 +1,26 @@
+.qrCodeContainer {
+  text-align: center;
+  margin-bottom: 1rem;
+  min-height: 300px;
+}
+
+.qrCodeImage {
+  display: block;
+  margin: 0 auto;
+  max-width: 300px;
+}
+
+.shareButtonsContainer {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.copyButtonContainer {
+  margin: 16px 0;
+}
+
+.textFieldContainer {
+  margin: 16px 0;
+} 

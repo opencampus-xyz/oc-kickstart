@@ -22,11 +22,7 @@ export default function Login() {
 
   useEffect(() => {
     if (isInitialized && authState?.isAuthenticated) {
-      if (originUrl) {
-        router.push(originUrl);
-      } else {
-        router.push("/redirect");
-      }
+      router.push(originUrl ?? "/redirect");
     }
   }, [isInitialized, authState, originUrl]);
 
