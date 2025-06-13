@@ -23,17 +23,26 @@ app.use("/public", publicRouter);
 
 app.use((req, res, next) => authWithToken(req, res, next));
 
-app.post(
-  "/signup",
-  asyncWrapper(async (req, res) => {
-    const { name, email } = req.body;
-    const ocid = req.authenticatedUser;
+app.post("/signup", async (req, res, next) => {
+  try {
+    const { name, email, ocid } = req.body;
+    if (!name || !email || !ocid) {
+      return res.status(400).json({ error: { message: "Missing required fields" } });
+    }
+    if (ocid !== req.authenticatedUser) {
+      return res.status(403).json({ error: { message: "OCID mismatch" } });
+    }
+
     await signup(name, email, ocid);
-    res.json({
-      message: "User created successfully",
-    });
-  })
-);
+    res.status(200).json({ message: "User registered successfully" });
+  } catch (error) {
+    console.error("Signup error:", error);
+    if (error.message.includes("already exists")) {
+      return res.status(409).json({ error: { message: error.message } });
+    }
+    next(error);
+  }
+});
 
 app.get(
   "/user",

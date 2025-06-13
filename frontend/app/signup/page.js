@@ -28,14 +28,19 @@ export default function Signup() {
   if (!authState.isAuthenticated) return <Loading />;
   if (!stateFromSDK) return null;
 
-  const { email, path } = JSON.parse(stateFromSDK);
-  if ((user.isMasterAdmin || user.isAdmin) && path !== "signup") {
-    ocAuth.logout(`${window.location.origin}/login?adminLogin=true`);
-    return;
-  }
-  if (!email) {
-    ocAuth.logout(`${window.location.origin}/login?invalidLogin=true`);
-    return;
+  const email = stateFromSDK ? JSON.parse(stateFromSDK).email : authState.user?.email;
+  const path = stateFromSDK ? JSON.parse(stateFromSDK).path : null;
+  
+  if (!user.isMasterAdmin) {
+    if (path !== "signup") {
+      ocAuth.logout(`${window.location.origin}/login?adminLogin=true`);
+      return null;
+    }
+
+    if (!email) {
+      ocAuth.logout(`${window.location.origin}/login?invalidLogin=true`);
+      return null;
+    }
   }
 
   const handleSignup = async () => {
@@ -44,20 +49,35 @@ export default function Signup() {
         setError("Name is required");
         return;
       }
-      await fetchWithAuth("/signup", {
+
+      const requestBody = { 
+        name, 
+        email: email || authState.user?.email,
+        ocid: authState.OCId
+      };
+
+      const response = await fetchWithAuth("/signup", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ name, email }),
+        body: JSON.stringify(requestBody),
       });
+
+      if (!response.ok) {
+        const data = await response.json();
+        throw new Error(data.error?.message || "Failed to sign up");
+      }
+
       await getUser();
       enqueueSnackbar("Signed up successfully", {
         variant: "success",
       });
-      router.push("/home");
+      router.push("/user-dashboard/profile");
     } catch (error) {
-      enqueueSnackbar("Error signing up", {
+      console.error("Signup error:", error);
+      setError(error.message);
+      enqueueSnackbar(error.message || "Error signing up", {
         variant: "error",
       });
     }
