@@ -5,6 +5,7 @@ import { ListingCard } from "@/components/listings/ListingCard";
 import { USER_LISTING_STATUSES } from "@/constants";
 import { useDB } from "@/hooks/useDB";
 import { useUser } from "@/providers/UserProvider";
+import { publicFetch } from "@/utils";
 import {
   Box,
   Chip,
@@ -16,7 +17,7 @@ import {
 } from "@mui/material";
 import { capitalize, keyBy } from "lodash";
 import { enqueueSnackbar } from "notistack";
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useState, useMemo } from "react";
 import styles from "./home.module.css";
 
 const PAGE_SIZE = 9;
@@ -32,8 +33,36 @@ export default function Home() {
   const [total, setTotal] = useState(0);
   const { isRegisteredUser, user } = useUser();
   const { db, isInitialized, error: dbError } = useDB();
+  
+  // Move isBackendMode to useMemo to prevent it from changing between renders
+  const isBackendMode = useMemo(() => process.env.NEXT_PUBLIC_DB_MODE !== 'indexeddb', []);
 
   const fetchListings = async (targetPage) => {
+    if (isBackendMode) {
+      setLoading(true);
+      try {
+        const params = new URLSearchParams();
+        params.append("page", (targetPage ?? page) - 1);
+        params.append("pageSize", PAGE_SIZE);
+        if (searchText) params.append("searchTitle", searchText);
+        if (searchTags.length) params.append("searchTags", searchTags.join(','));
+        if (searchStatus !== 'all') params.append("searchStatus", searchStatus);
+        
+        const response = await publicFetch(`/listings?${params}`);
+        const data = await response.json();
+        setListings(data.listings);
+        setTotal(data.total);
+      } catch (error) {
+        console.error(error);
+        enqueueSnackbar("Error fetching listings", {
+          variant: "error",
+        });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
     if (!isInitialized || !db) {
       return; // Don't try to fetch if DB isn't ready
     }
@@ -62,6 +91,21 @@ export default function Home() {
   };
 
   const fetchTags = async () => {
+    if (isBackendMode) {
+      try {
+        const response = await publicFetch('/tags');
+        const data = await response.json();
+        setTags(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error(error);
+        enqueueSnackbar("Error fetching tags", {
+          variant: "error",
+        });
+        setTags([]); // Set empty array on error
+      }
+      return;
+    }
+
     if (!isInitialized || !db) {
       return; // Don't try to fetch if DB isn't ready
     }
@@ -79,11 +123,12 @@ export default function Home() {
   };
 
   useEffect(() => {
-    if (isInitialized && db) {
+    // Only run the effect if we're in backend mode or if the DB is initialized
+    if (isBackendMode || (isInitialized && db)) {
       fetchTags();
       fetchListings();
     }
-  }, [isInitialized, db, isRegisteredUser, searchTags, page, searchStatus]);
+  }, [isInitialized, db, isRegisteredUser, searchTags, page, searchStatus]); // Remove isBackendMode from deps since it's constant
 
   const handleChangeTags = (e) => {
     setPage(1);
@@ -99,7 +144,7 @@ export default function Home() {
     fetchListings(1);
   };
 
-  if (dbError) {
+  if (dbError && !isBackendMode) {
     return (
       <div className={styles.errorContainer}>
         <h2>Error Loading Database</h2>
@@ -109,7 +154,7 @@ export default function Home() {
     );
   }
 
-  if (!isInitialized || !db) {
+  if ((!isInitialized || !db) && !isBackendMode) {
     return (
       <div className={styles.loadingContainer}>
         <Loading />
