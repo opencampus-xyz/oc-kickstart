@@ -20,13 +20,12 @@ return <div className={styles.pageContainer}>
   <div className={styles.listingContainer}>
     <div className={styles.header}>
       <Typography variant="h2">{listing.name}</Typography>
-      {listing.vc_properties?.achievementType && (
-        <Chip 
-          label={listing.vc_properties.achievementType.charAt(0).toUpperCase() + listing.vc_properties.achievementType.slice(1)} 
-          color="primary" 
-          variant="outlined"
-        />
-      )}
+      <Chip 
+        label={listing.vc_properties.achievementType.charAt(0).toUpperCase() + listing.vc_properties.achievementType.slice(1)} 
+        color="primary" 
+        variant="outlined"
+        className={styles.capitalizeFirst}
+      />
       <ListingShareButton
         listing={listing}
         showShareDialog={showShareDialog}
@@ -49,7 +48,7 @@ return <div className={styles.pageContainer}>
       <div className={styles.detailsGrid}>
         <div className={styles.detailItem}>
           <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-          <Typography variant="body1">{listing.status.charAt(0).toUpperCase() + listing.status.slice(1) }</Typography>
+          <Typography variant="body1" className={styles.capitalizeFirst}>{listing.status}</Typography>
         </div>
         <div className={styles.detailItem}>
           <Typography variant="subtitle2" color="text.secondary">Sign Up Limit</Typography>
@@ -102,12 +101,10 @@ return <div className={styles.pageContainer}>
               <Typography variant="body1">{listing.vc_properties.title}</Typography>
             </div>
           )}
-          {listing.vc_properties.achievementType && (
-            <div className={styles.detailItem}>
-              <Typography variant="subtitle2" color="text.secondary">Achievement Type</Typography>
-              <Typography variant="body1">{listing.vc_properties.achievementType.charAt(0).toUpperCase() + listing.vc_properties.achievementType.slice(1)}</Typography>
-            </div>
-          )}
+          <div className={styles.detailItem}>
+            <Typography variant="subtitle2" color="text.secondary">Achievement Type</Typography>
+            <Typography variant="body1" className={styles.capitalizeFirst}>{listing.vc_properties.achievementType}</Typography>
+          </div>
           {listing.vc_properties.expireInDays && (
             <div className={styles.detailItem}>
               <Typography variant="subtitle2" color="text.secondary">Expires In</Typography>

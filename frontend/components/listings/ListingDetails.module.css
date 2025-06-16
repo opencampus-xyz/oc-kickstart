@@ -46,6 +46,14 @@
   margin-top: 16px;
 }
 
+.capitalizeFirst {
+  text-transform: lowercase;
+}
+
+.capitalizeFirst::first-letter {
+  text-transform: uppercase;
+}
+
 @media (max-width: 600px) {
   .listingContainer {
     padding: 16px;

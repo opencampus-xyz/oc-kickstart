@@ -98,12 +98,22 @@ export default function Home() {
     if (tagsParam === null) {
       setSearchTags([]);
     } else {
-      const newTags = tagsParam ? tagsParam.split(',') : [];
-      if (JSON.stringify(newTags) !== JSON.stringify(searchTags)) {
-        setSearchTags(newTags);
+      const tagIds = tagsParam ? tagsParam.split(',') : [];
+      const activeTagIds = tagIds.filter(id => tagsKeyById[id]);
+      if (JSON.stringify(activeTagIds) !== JSON.stringify(searchTags)) {
+        setSearchTags(activeTagIds);
+        if (activeTagIds.length !== tagIds.length) {
+          const params = new URLSearchParams(window.location.search);
+          if (activeTagIds.length >= 1) {
+            params.set('tags', activeTagIds.join(','));
+          } else {
+            params.delete('tags');
+          }
+          router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
+        }
       }
     }
-  }, [searchParams]);
+  }, [searchParams, tagsKeyById]);
 
   const handleChangeTags = (e) => {
     const newTags = e.target.value;
@@ -173,10 +183,7 @@ export default function Home() {
                 renderValue={(selected) => (
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                     {selected.map((value) => (
-                      <Chip 
-                        key={value} 
-                        label={tagsKeyById[value]?.name || `Tag ${value}`} 
-                      />
+                      <Chip key={value} label={tagsKeyById[value].name}/>
                     ))}
                   </Box>
                 )}

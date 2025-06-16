@@ -30,6 +30,7 @@ export default function Signup() {
 
   const email = stateFromSDK ? JSON.parse(stateFromSDK).email : authState.user?.email;
   const path = stateFromSDK ? JSON.parse(stateFromSDK).path : null;
+  const originUrl = stateFromSDK ? JSON.parse(stateFromSDK).originUrl : null;
   
   if (!user.isMasterAdmin) {
     if (path !== "signup") {
@@ -52,8 +53,7 @@ export default function Signup() {
 
       const requestBody = { 
         name, 
-        email: email || authState.user?.email,
-        ocid: authState.OCId
+        email: email || authState.user?.email
       };
 
       const response = await fetchWithAuth("/signup", {
@@ -73,7 +73,12 @@ export default function Signup() {
       enqueueSnackbar("Signed up successfully", {
         variant: "success",
       });
-      router.push("/user-dashboard/profile");
+      
+      if (originUrl) {
+        router.push(originUrl);
+      } else {
+        router.push("/user-dashboard/profile");
+      }
     } catch (error) {
       console.error("Signup error:", error);
       setError(error.message);
