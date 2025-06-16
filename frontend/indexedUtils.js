@@ -65,10 +65,15 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 });
                 break;
 
-            case '/auth-user/signup-for-listing':
-                const userForSignup = await dbService.getUserByOCId(ocId);
-                response = await dbService.signupForListing(userForSignup.id, body.listingId);
+            case '/auth-user/signup-for-listing': {
+                const user = await dbService.getUserByOCId(ocId);
+                if (!user?.user?.name) {
+                    throw new Error("Missing username for signing up for listing");
+                }
+                await dbService.signupForListing(user.user.id, body.listingId);
+                response = { message: "Signed up for listing successfully" };
                 break;
+            }
 
             case '/auth-user/sign-ups':
                 const userForSignups = await dbService.getUserByOCId(ocId);
@@ -116,9 +121,54 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 response = await dbService.getTags();
                 break;
 
-            case '/admin/listing/:id':
-                response = await dbService.getListingById(queryParams.id);
+            case '/tags':
+            case '/public/tags': {
+                const response = await dbService.getTags();
+                return response.data;
+            }
+
+            case '/admin/users': {
+                const usersResponse = await dbService.getUsers({
+                    page: parseInt(queryParams.page) || 0,
+                    pageSize: parseInt(queryParams.pageSize) || 10,
+                    searchText: queryParams.searchText
+                });
+                response = {
+                    data: usersResponse.users,
+                    total: usersResponse.total
+                };
                 break;
+            }
+
+            case '/admin/listings': {
+                const listingsResponse = await dbService.getListings({
+                    page: parseInt(queryParams.page) || 0,
+                    pageSize: parseInt(queryParams.pageSize) || 10,
+                    searchText: queryParams.searchText,
+                    includeUserSignups: false,
+                });
+                response = {
+                    data: listingsResponse.listings,
+                    total: listingsResponse.total,
+                };
+                break;
+            }
+
+            case (endpoint.match(/^\/admin\/listing\/([^\/]+)$/) || {}).input: {
+                const id = endpoint.split('/').pop();
+                console.log('Fetching listing by ID:', id);
+                const listing = await dbService.getListingById(id);
+                console.log('Got listing:', listing);
+                if (!listing) {
+                    console.log('Listing not found for ID:', id);
+                    return {
+                        ok: false,
+                        json: async () => ({ error: { message: 'Listing not found' } })
+                    };
+                }
+                response = listing;
+                break;
+            }
 
             case '/master-admin/admin-configs':
                 if (options.method === 'GET') {
@@ -168,7 +218,6 @@ export const publicFetch = async (url, options = {}) => {
         const body = options.body ? JSON.parse(options.body) : {};
 
         let response;
-        // Handle achievements endpoint with both URL formats
         if (endpoint === '/achievements' || endpoint.startsWith('/achievements/')) {
             let ocid;
             if (endpoint === '/achievements' && queryParams.ocid) {
@@ -183,9 +232,9 @@ export const publicFetch = async (url, options = {}) => {
                 pageSize: parseInt(queryParams.pageSize) || 10
             });
         } else {
-            // Handle other endpoints
             switch (endpoint) {
                 case '/listings':
+                case '/public/listings':
                     response = await dbService.getListings({
                         page: parseInt(queryParams.page) || 0,
                         pageSize: parseInt(queryParams.pageSize) || 10,
@@ -196,6 +245,7 @@ export const publicFetch = async (url, options = {}) => {
                     break;
 
                 case '/tags':
+                case '/public/tags':
                     response = await dbService.getTags();
                     break;
 

@@ -250,52 +250,91 @@ export class DBService {
     // ===== backend/src/admin/index.js endpoints =====
     // Corresponds to backend/src/admin/index.js GET /listing/:id
     async getListingById(id) {
-        const tx = this.db.transaction(['listings', 'listing_tags'], 'readonly');
-        const listingStore = tx.objectStore('listings');
-        const listingTagsStore = tx.objectStore('listing_tags');
-        
-        const listing = await listingStore.get(id);
-        if (!listing) return null;
-        
-        const tags = await listingTagsStore.index('listing_id').getAll(id);
-        return {
-            ...listing,
-            tags: tags.map(t => t.tag_id)
-        };
+        console.log('Getting listing by ID:', id);
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(['listings'], 'readonly');
+            const listingStore = tx.objectStore('listings');
+            
+            console.log('Opening request for listing:', id);
+            const request = listingStore.get(id);
+            
+            request.onsuccess = () => {
+                console.log('Listing request success, result:', request.result);
+                resolve(request.result);
+            };
+            
+            request.onerror = (event) => {
+                console.error('Listing request error:', event.target.error);
+                reject(event.target.error);
+            };
+        });
     }
 
     // Corresponds to backend/src/admin/index.js POST /listing/create
     async createListing(listingData) {
-        const tx = this.db.transaction(['listings', 'listing_tags'], 'readwrite');
+        console.log('Creating listing with data:', listingData);
+        const tx = this.db.transaction(['listings'], 'readwrite');
         const listingStore = tx.objectStore('listings');
-        const listingTagsStore = tx.objectStore('listing_tags');
         
         try {
-            const listingDoc = createListingDocument(listingData);
-            await listingStore.add(listingDoc);
-
-            for (const tagId of listingData.tags) {
-                await listingTagsStore.add({
-                    id: crypto.randomUUID(),
-                    listing_id: listingDoc.id,
-                    tag_id: tagId,
-                    created_ts: new Date().toISOString(),
-                    last_modified_ts: new Date().toISOString()
-                });
-            }
-            return listingDoc;
+            const listingDoc = createListingDocument({
+                ...listingData,
+                tags: listingData.tags || [], // Store tags directly in the listing document
+                sign_ups_limit: parseInt(listingData.maxSignUps),
+                vc_properties: {
+                    title: listingData.title,
+                    achievementType: listingData.achievementType,
+                    expireInDays: listingData.expireInDays ? parseInt(listingData.expireInDays) : null
+                }
+            });
+            console.log('Created listing document:', listingDoc);
+            
+            // Add the listing and wait for the result
+            const addResult = await new Promise((resolve, reject) => {
+                const request = listingStore.add(listingDoc);
+                request.onsuccess = () => {
+                    console.log('Successfully added listing to store');
+                    resolve(listingDoc); // Return the listing doc directly
+                };
+                request.onerror = (event) => {
+                    console.error('Error adding listing to store:', event.target.error);
+                    reject(event.target.error);
+                };
+            });
+            
+            console.log('Add result:', addResult);
+            
+            // Return the listing in the format expected by the page
+            return {
+                id: addResult.id,
+                name: addResult.name,
+                description: addResult.description,
+                trigger_mode: addResult.trigger_mode,
+                sign_ups_limit: addResult.sign_ups_limit,
+                vc_properties: addResult.vc_properties,
+                tags: addResult.tags,
+                status: addResult.status,
+                created_ts: addResult.created_ts,
+                last_modified_ts: addResult.last_modified_ts,
+                published_ts: addResult.published_ts,
+                deleted_ts: addResult.deleted_ts
+            };
         } catch (error) {
+            console.error('Error in createListing:', error);
             throw error;
         }
     }
 
     // Corresponds to backend/src/admin/index.js POST /listing/update
     async updateListing(id, listingData) {
-        const tx = this.db.transaction(['listings', 'listing_tags'], 'readwrite');
+        const tx = this.db.transaction(['listings'], 'readwrite');
         const listingStore = tx.objectStore('listings');
-        const listingTagsStore = tx.objectStore('listing_tags');
         
         try {
+            if (!id) {
+                throw new Error("No listing ID provided");
+            }
+
             const listing = await listingStore.get(id);
             if (!listing) {
                 throw new Error("Listing not found");
@@ -310,25 +349,10 @@ export class DBService {
                 achievementType: listingData.achievementType,
                 expireInDays: listingData.expireInDays ? parseInt(listingData.expireInDays) : null
             };
+            listing.tags = listingData.tags || [];
             listing.last_modified_ts = new Date().toISOString();
             
             await listingStore.put(listing);
-
-            const existingTags = await listingTagsStore.index('listing_id').getAll(id);
-            for (const tag of existingTags) {
-                await listingTagsStore.delete(tag.id);
-            }
-
-            for (const tagId of listingData.tags) {
-                await listingTagsStore.add({
-                    id: crypto.randomUUID(),
-                    listing_id: id,
-                    tag_id: tagId,
-                    created_ts: new Date().toISOString(),
-                    last_modified_ts: new Date().toISOString()
-                });
-            }
-
             return { id };
         } catch (error) {
             throw error;
@@ -336,21 +360,78 @@ export class DBService {
     }
 
     // Corresponds to backend/src/admin/index.js POST /listing/publish
-    async updateListingStatus(id, status) {
+    async updateListingStatus(listingId, newStatus) {
+        console.log('Updating listing status:', { listingId, newStatus });
         const tx = this.db.transaction(['listings'], 'readwrite');
-        const store = tx.objectStore('listings');
-        const listing = await store.get(id);
+        const listingStore = tx.objectStore('listings');
         
-        if (listing) {
-            listing.status = status;
-            if (status === ListingStatus.ACTIVE) {
-                listing.published_ts = new Date().toISOString();
-            } else if (status === ListingStatus.DELETED) {
-                listing.deleted_ts = new Date().toISOString();
+        try {
+            // First get the current listing
+            const currentListing = await new Promise((resolve, reject) => {
+                const request = listingStore.get(listingId);
+                request.onsuccess = () => {
+                    console.log('Got current listing:', request.result);
+                    resolve(request.result);
+                };
+                request.onerror = (event) => {
+                    console.error('Error getting listing:', event.target.error);
+                    reject(event.target.error);
+                };
+            });
+            
+            if (!currentListing) {
+                throw new Error(`Listing not found: ${listingId}`);
             }
-            await store.put(listing);
+            
+            // Validate required fields
+            const requiredFields = ['id', 'name', 'description', 'trigger_mode', 'sign_ups_limit', 'vc_properties', 'tags', 'status'];
+            const missingFields = requiredFields.filter(field => !currentListing[field]);
+            
+            if (missingFields.length > 0) {
+                console.error('Listing is missing required fields:', currentListing);
+                throw new Error(`Listing is missing required fields: ${missingFields.join(', ')}`);
+            }
+            
+            // Update the status and timestamps
+            const updatedListing = {
+                ...currentListing,
+                status: newStatus,
+                last_modified_ts: new Date().toISOString(),
+                published_ts: newStatus === 'published' ? new Date().toISOString() : currentListing.published_ts
+            };
+            
+            // Save the updated listing
+            await new Promise((resolve, reject) => {
+                const request = listingStore.put(updatedListing);
+                request.onsuccess = () => {
+                    console.log('Successfully updated listing status');
+                    resolve(updatedListing);
+                };
+                request.onerror = (event) => {
+                    console.error('Error updating listing status:', event.target.error);
+                    reject(event.target.error);
+                };
+            });
+            
+            // Return the updated listing in the expected format
+            return {
+                id: updatedListing.id,
+                name: updatedListing.name,
+                description: updatedListing.description,
+                trigger_mode: updatedListing.trigger_mode,
+                sign_ups_limit: updatedListing.sign_ups_limit,
+                vc_properties: updatedListing.vc_properties,
+                tags: updatedListing.tags,
+                status: updatedListing.status,
+                created_ts: updatedListing.created_ts,
+                last_modified_ts: updatedListing.last_modified_ts,
+                published_ts: updatedListing.published_ts,
+                deleted_ts: updatedListing.deleted_ts
+            };
+        } catch (error) {
+            console.error('Error in updateListingStatus:', error);
+            throw error;
         }
-        return listing;
     }
 
     // Corresponds to backend/src/admin/index.js POST /listing/signups/update-status
@@ -394,16 +475,27 @@ export class DBService {
     async getTags() {
         const tx = this.db.transaction(['tags'], 'readonly');
         const store = tx.objectStore('tags');
-        const index = store.index('archived_ts');
+        const index = store.index('created_ts');
         
         return new Promise((resolve, reject) => {
-            const request = index.getAll(null);
+            const request = index.openCursor(null, 'prev');
+            const results = [];
+            let count = 0;
             
             request.onsuccess = (event) => {
-                const tags = event.target.result || [];
-                resolve(tags);
+                const cursor = event.target.result;
+                if (cursor) {
+                    const tag = cursor.value;
+                    if (!tag.archived_ts) {
+                        results.push(tag);
+                        count++;
+                    }
+                    cursor.continue();
+                } else {
+                    resolve({ data: results, total: count });
+                }
             };
-            
+
             request.onerror = (event) => {
                 reject(event.target.error);
             };
@@ -463,22 +555,30 @@ export class DBService {
                 const cursor = event.target.result;
                 if (cursor) {
                     const listing = cursor.value;
-                    if (this.matchesListingFilters(listing, { searchText, searchTags, searchStatus })) {
+                    // Only include active listings by default
+                    if (listing.status === ListingStatus.ACTIVE && this.matchesListingFilters(listing, { searchText, searchTags, searchStatus })) {
                         if (count >= page * pageSize && count < (page + 1) * pageSize) {
                             if (includeUserSignups && userId) {
                                 listing.sign_up_status = this.getUserSignupStatus(listing, userId);
                             }
-                            results.push(listing);
+                            const signupsCount = listing.signups.filter(([_, status]) => 
+                                status === UserListingStatus.APPROVED || status === UserListingStatus.PENDING
+                            ).length;
+                            results.push({
+                                ...listing,
+                                signups_count: signupsCount
+                            });
                         }
                         count++;
                     }
                     cursor.continue();
                 } else {
-                    resolve({ data: results, total: count });
+                    resolve({ listings: results, total: count });
                 }
             };
 
             request.onerror = (event) => {
+                console.error('Error fetching listings:', event.target.error);
                 reject(event.target.error);
             };
         });
@@ -620,19 +720,32 @@ export class DBService {
         return job;
     }
 
+    // Helper method to filter listings
     matchesListingFilters(listing, { searchText, searchTags, searchStatus }) {
-        if (searchText && !listing.name.toLowerCase().includes(searchText.toLowerCase())) {
+        // Filter by status
+        if (searchStatus && listing.status !== searchStatus) {
             return false;
         }
-        if (searchTags && !searchTags.every(tagId => listing.tags.includes(tagId))) {
-            return false;
-        }
-        if (searchStatus && searchStatus !== 'all') {
-            const userSignup = listing.signups.find(([_, status]) => status === searchStatus);
-            if (!userSignup) {
+
+        // Filter by search text (name or description)
+        if (searchText) {
+            const searchLower = searchText.toLowerCase();
+            const nameMatch = listing.name?.toLowerCase().includes(searchLower);
+            const descMatch = listing.description?.toLowerCase().includes(searchLower);
+            if (!nameMatch && !descMatch) {
                 return false;
             }
         }
+
+        // Filter by tags
+        if (searchTags && searchTags.length > 0) {
+            const listingTags = listing.tags || [];
+            const hasAllTags = searchTags.every(tag => listingTags.includes(tag));
+            if (!hasAllTags) {
+                return false;
+            }
+        }
+
         return true;
     }
 
@@ -726,6 +839,58 @@ export class DBService {
         const adminConfig = await index.get(ocId);
         adminConfig.admin_ocids = adminConfig.admin_ocids.filter(id => id !== ocId);
         await store.put(adminConfig);
+    }
+
+    async getUsers({ page = 0, pageSize = 10, searchText }) {
+        const tx = this.db.transaction(['users'], 'readonly');
+        const store = tx.objectStore('users');
+        
+        return new Promise((resolve, reject) => {
+            const request = store.getAll();
+            request.onsuccess = (event) => {
+                const users = event.target.result || [];
+                // Filter by search text if provided
+                const filteredUsers = searchText 
+                    ? users.filter(user => user.search_text.toLowerCase().includes(searchText.toLowerCase()))
+                    : users;
+                
+                // Sort by created_ts in descending order (newest first)
+                filteredUsers.sort((a, b) => new Date(b.created_ts) - new Date(a.created_ts));
+                
+                // Apply pagination
+                const start = page * pageSize;
+                const end = start + pageSize;
+                const paginatedUsers = filteredUsers.slice(start, end);
+                
+                resolve({ 
+                    users: paginatedUsers, 
+                    total: filteredUsers.length 
+                });
+            };
+
+            request.onerror = (event) => {
+                reject(event.target.error);
+            };
+        });
+    }
+
+    async getAllListings() {
+        return new Promise((resolve, reject) => {
+            const tx = this.db.transaction(['listings'], 'readonly');
+            const listingStore = tx.objectStore('listings');
+            
+            const request = listingStore.getAll();
+            
+            request.onsuccess = () => {
+                console.log('All listings:', request.result);
+                resolve(request.result);
+            };
+            
+            request.onerror = (event) => {
+                console.error('Error getting all listings:', event.target.error);
+                reject(event.target.error);
+            };
+        });
     }
 
 }

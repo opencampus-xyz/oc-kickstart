@@ -1,4 +1,5 @@
 import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
+import { publicFetch } from "@/utils";
 import {
   Button,
   Dialog,
@@ -21,9 +22,9 @@ export const AddTagToListingsDialog = ({ open, onClose, tag }) => {
   const fetchWithAuth = useAuthenticatedFetch();
 
   const getActiveListings = async () => {
-    const response = await fetchWithAuth("/public/listings");
+    const response = await fetchWithAuth("/admin/listings");
     const data = await response.json();
-    setListings(data.listings);
+    setListings(data.listings || data.data || []);
   };
 
   useEffect(() => {

@@ -49,7 +49,7 @@ export default function Home() {
         includeUserSignups: isRegisteredUser,
         userId: user?.id
       });
-      setListings(result.data);
+      setListings(result.listings);
       setTotal(result.total);
     } catch (error) {
       console.error(error);
