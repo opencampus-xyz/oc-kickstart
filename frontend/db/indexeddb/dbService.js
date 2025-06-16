@@ -46,7 +46,7 @@ export class DBService {
 
         if (existingUser) {
             console.log('User already exists:', existingUser);
-            return existingUser;
+            return { message: "User created successfully" };
         }
 
         // Create new user document
@@ -60,7 +60,7 @@ export class DBService {
 
         console.log('Created user document:', userDoc);
         await store.add(userDoc);
-        return userDoc;
+        return { message: "User created successfully" };
     }
     
     // Corresponds to backend/src/index.js GET /user and backend/src/auth-user/index.js registeredUserMiddleware()
@@ -119,7 +119,7 @@ export class DBService {
         user.name = username;
         user.last_modified_ts = new Date().toISOString();
         await store.put(user);
-        return user;
+        return { message: "Username updated successfully" };
     }
 
     // Corresponds to backend/src/auth-user/index.js GET /sign-ups
@@ -139,38 +139,50 @@ export class DBService {
                 const cursor = event.target.result;
                 if (cursor) {
                     const signup = cursor.value;
-                    const listing = await listingsStore.get(signup.listing_id);
-                    
-                    if (listing && this.matchesUserSignupFilters(listing, { searchText })) {
-                        const vcJobs = [];
-                        const vcJobsCursor = await vcJobsStore.openCursor();
-                        while (vcJobsCursor) {
-                            const job = vcJobsCursor.value;
-                            if (job.user_id === signup.user_id && job.listing_id === signup.listing_id) {
-                                vcJobs.push(job);
+                    if (signup.user_id === userId) {
+                        try {
+                            const listing = await listingsStore.get(signup.listing_id);
+                            if (!listing) {
+                                console.warn(`Listing not found for signup: ${signup.listing_id}`);
+                                cursor.continue();
+                                return;
                             }
-                            await vcJobsCursor.continue();
-                        }
-                        
-                        const vcCount = vcJobs.length;
-                        const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
-                        const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
-                        
-                        const vcStatus = vcPendingCount > 0 ? VcIssueJobStatus.PENDING : 
-                                       vcFailedCount > 0 ? VcIssueJobStatus.FAILED : 
-                                       vcCount > 0 ? VcIssueJobStatus.SUCCESS : null;
 
-                        if (count >= page * pageSize && count < (page + 1) * pageSize) {
-                            results.push({
-                                ...signup,
-                                listing_name: listing.name,
-                                vc_count: vcCount,
-                                vc_pending_count: vcPendingCount,
-                                vc_failed_count: vcFailedCount,
-                                vc_issue_status: vcStatus
-                            });
+                            // Get VC jobs for this signup
+                            const vcJobs = [];
+                            const vcJobsCursor = await vcJobsStore.openCursor();
+                            while (vcJobsCursor) {
+                                const job = vcJobsCursor.value;
+                                if (job.user_id === signup.user_id && job.listing_id === signup.listing_id) {
+                                    vcJobs.push(job);
+                                }
+                                await vcJobsCursor.continue();
+                            }
+
+                            // Calculate VC status like SQL backend
+                            const vcCount = vcJobs.length;
+                            const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
+                            const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
+                            const vcStatus = vcPendingCount > 0 ? 'pending' : vcFailedCount > 0 ? 'failed' : 'success';
+
+                            if (count >= page * pageSize && count < (page + 1) * pageSize) {
+                                if (!searchText || listing.name.toLowerCase().includes(searchText.toLowerCase())) {
+                                    results.push({
+                                        listing_name: listing.name,
+                                        id: listing.id,
+                                        user_listing_status: signup.status,
+                                        created_ts: signup.created_ts,
+                                        vc_count: vcCount,
+                                        vc_pending_count: vcPendingCount,
+                                        vc_failed_count: vcFailedCount,
+                                        vc_issue_status: vcCount > 0 ? vcStatus : null
+                                    });
+                                }
+                            }
+                            count++;
+                        } catch (error) {
+                            console.error('Error processing signup:', error);
                         }
-                        count++;
                     }
                     cursor.continue();
                 } else {
