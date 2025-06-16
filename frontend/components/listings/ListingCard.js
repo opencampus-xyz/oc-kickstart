@@ -69,9 +69,7 @@ export const ListingCard = ({ listing, refetch }) => {
           <CardContent>
             <div className={styles.listingCardTitle}>
               <div>{listing.name}</div>
-              {listing.vc_properties?.achievementType && (
-                <Chip label={listing.vc_properties.achievementType} />
-              )}
+              <Chip label={listing.vc_properties.achievementType} />
             </div>
             <Typography variant="body2" component="div">
               {listing.description}
