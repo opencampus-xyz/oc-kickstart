@@ -11,10 +11,11 @@ import { signup } from "./signup.js";
 import { asyncWrapper } from "./utils.js";
 import { VCIssuerService } from "./vc-issuer.js";
 const app = express();
+const MIN_VC_ISSUANCE_INTERVAL = 30;
 
 setInterval(() => {
   VCIssuerService.getInstance().run();
-}, secondsToMilliseconds(Math.max(parseInt(process.env.VC_ISSUANCE_INTERVAL) || 30, 30)));
+}, secondsToMilliseconds(Math.max(parseInt(process.env.VC_ISSUANCE_INTERVAL) || MIN_VC_ISSUANCE_INTERVAL, MIN_VC_ISSUANCE_INTERVAL)));
 
 app.use(cors());
 app.use(express.json());
