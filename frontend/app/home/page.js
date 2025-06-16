@@ -43,7 +43,12 @@ export default function Home() {
     try {
       const response = await fetchWithAuth(`/auth-user/listings?${params}`);
       const data = await response.json();
-      setListings(data.listings);
+      setListings(prevListings => {
+        if (JSON.stringify(prevListings) === JSON.stringify(data.listings)) {
+          return prevListings;
+        }
+        return data.listings;
+      });
       setTotal(data.total);
     } catch (error) {
       console.error(error);
@@ -57,7 +62,12 @@ export default function Home() {
     try {
       const response = await publicFetch(`/listings?${params}`);
       const data = await response.json();
-      setListings(data.listings);
+      setListings(prevListings => {
+        if (JSON.stringify(prevListings) === JSON.stringify(data.listings)) {
+          return prevListings;
+        }
+        return data.listings;
+      });
       setTotal(data.total);
     } catch (error) {
       console.error(error);
@@ -66,8 +76,11 @@ export default function Home() {
       });
     }
   };
+
   const fetchListings = async (targetPage) => {
-    setLoading(true);
+    if (targetPage !== page || searchText || searchTags.length > 0 || searchStatus !== 'all') {
+      setLoading(true);
+    }
 
     const params = getSearchParams(targetPage);
     if (isRegisteredUser) {
@@ -96,10 +109,12 @@ export default function Home() {
     fetchListings();
   }, [isRegisteredUser, searchTags, page, searchStatus]);
 
-  useEffect(() => {
+  const searchParamsEffect = useMemo(() => {
     const tagsParam = searchParams.get('tags');
     if (tagsParam === null) {
-      setSearchTags([]);
+      if (searchTags.length > 0) {
+        setSearchTags([]);
+      }
     } else {
       const tagIds = tagsParam ? tagsParam.split(',') : [];
       const activeTagIds = tagIds.filter(id => tagsKeyById[id]);
@@ -113,12 +128,16 @@ export default function Home() {
             params.delete('tags');
           }
           if (params.toString()) {
-            router.push(`/home?${params.toString()}`);
+            router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
           }
         }
       }
     }
-  }, [searchParams, tagsKeyById]);
+  }, [searchParams, tagsKeyById, searchTags, router]);
+
+  useEffect(() => {
+    searchParamsEffect;
+  }, [searchParamsEffect]);
 
   const handleChangeTags = (e) => {
     const newTags = e.target.value;
@@ -228,15 +247,13 @@ export default function Home() {
           )}
         </div>
         <div className={styles.listingsContainer}>
-          {loading && <Loading />}
-          {!loading &&
+          {loading ? (
+            <Loading />
+          ) : (
             listings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                refetch={fetchListings}
-              />
-            ))}
+              <ListingCard key={listing.id} listing={listing} />
+            ))
+          )}
         </div>
       </div>
     </div>

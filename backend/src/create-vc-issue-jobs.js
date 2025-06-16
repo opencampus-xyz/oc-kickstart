@@ -1,7 +1,8 @@
 import { addDays } from "date-fns";
 import db from "./db.js";
-import { v4 as uuidv4 } from 'uuid';
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 
+// Generate a random namespace using v4, but use it with v5 for deterministic UUIDs
 const UUID_NAMESPACE = uuidv4();
 
 export const createVCIssueJobs = async (userId, listingId) => {
