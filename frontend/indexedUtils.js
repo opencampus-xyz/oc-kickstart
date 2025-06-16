@@ -168,33 +168,40 @@ export const publicFetch = async (url, options = {}) => {
         const body = options.body ? JSON.parse(options.body) : {};
 
         let response;
-        switch (endpoint) {
-            case '/listings':
-                response = await dbService.getListings({
-                    page: parseInt(queryParams.page) || 0,
-                    pageSize: parseInt(queryParams.pageSize) || 10,
-                    searchText: queryParams.searchTitle,
-                    searchTags: queryParams.searchTags?.split(','),
-                    searchStatus: queryParams.searchStatus
-                });
-                break;
+        // Handle achievements endpoint with both URL formats
+        if (endpoint === '/achievements' || endpoint.startsWith('/achievements/')) {
+            let ocid;
+            if (endpoint === '/achievements' && queryParams.ocid) {
+                ocid = queryParams.ocid;
+            } else if (endpoint.startsWith('/achievements/')) {
+                ocid = endpoint.split('/achievements/')[1];
+            } else {
+                throw new Error("OC ID is required for achievements");
+            }
+            response = await dbService.getAchievementsByOCId(ocid, {
+                page: parseInt(queryParams.page) || 0,
+                pageSize: parseInt(queryParams.pageSize) || 10
+            });
+        } else {
+            // Handle other endpoints
+            switch (endpoint) {
+                case '/listings':
+                    response = await dbService.getListings({
+                        page: parseInt(queryParams.page) || 0,
+                        pageSize: parseInt(queryParams.pageSize) || 10,
+                        searchText: queryParams.searchTitle,
+                        searchTags: queryParams.searchTags?.split(','),
+                        searchStatus: queryParams.searchStatus
+                    });
+                    break;
 
-            case '/tags':
-                response = await dbService.getTags();
-                break;
+                case '/tags':
+                    response = await dbService.getTags();
+                    break;
 
-            case '/achievements':
-                if (!queryParams.ocid) {
-                    throw new Error("OC ID is required for achievements");
-                }
-                response = await dbService.getAchievementsByOCId(queryParams.ocid, {
-                    page: parseInt(queryParams.page) || 0,
-                    pageSize: parseInt(queryParams.pageSize) || 10
-                });
-                break;
-
-            default:
-                throw new Error(`Unsupported public endpoint: ${endpoint}`);
+                default:
+                    throw new Error(`Unsupported public endpoint: ${endpoint}`);
+            }
         }
 
         return {
@@ -202,6 +209,7 @@ export const publicFetch = async (url, options = {}) => {
             json: async () => response
         };
     } catch (error) {
+        console.error('Error in publicFetch:', error);
         return {
             ok: false,
             json: async () => ({ error: { message: error.message } })

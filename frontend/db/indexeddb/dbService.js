@@ -465,54 +465,118 @@ export class DBService {
         });
     }
 
-    // Corresponds to backend/src/public/achievements/:ocid
+    // Corresponds to backend/src/public/index.js GET /achievements/:ocid
     async getAchievementsByOCId(ocId, { page = 0, pageSize = 10 }) {
+        const user = await this.getUserByOCId(ocId);
+        if (!user?.user) {
+            return { data: [], total: 0 };
+        }
+
         const tx = this.db.transaction(['user_listings', 'listings', 'vc_issue_jobs'], 'readonly');
         const userListingsStore = tx.objectStore('user_listings');
         const listingsStore = tx.objectStore('listings');
         const vcJobsStore = tx.objectStore('vc_issue_jobs');
         const index = userListingsStore.index('user_id');
-        
+
         return new Promise((resolve, reject) => {
-            const request = index.openCursor();
             const results = [];
             let count = 0;
-            
-            request.onsuccess = async (event) => {
-                const cursor = event.target.result;
-                if (cursor) {
-                    const signup = cursor.value;
-                    if (signup.status === UserListingStatus.COMPLETED) {
-                        const listing = await listingsStore.get(signup.listing_id);
-                        const vcJobs = [];
-                        const vcJobsCursor = await vcJobsStore.openCursor();
-                        while (vcJobsCursor) {
-                            const job = vcJobsCursor.value;
-                            if (job.user_id === signup.user_id && job.listing_id === signup.listing_id) {
-                                vcJobs.push(job);
-                            }
-                            await vcJobsCursor.continue();
-                        }
-                        const vcJob = vcJobs[0];
-                        
-                        if (count >= page * pageSize && count < (page + 1) * pageSize) {
-                            results.push({
-                                listing_name: listing.name,
-                                listing_id: listing.id,
-                                completed_ts: signup.last_modified_ts,
-                                vc_status: vcJob?.status || null,
-                                vc_properties: listing.vc_properties
-                            });
-                        }
-                        count++;
+
+            const vcJobsRequest = vcJobsStore.getAllKeys();
+            vcJobsRequest.onsuccess = () => {
+                const vcJobKeys = vcJobsRequest.result;
+                const vcJobs = [];
+                
+                const processVcJob = (index) => {
+                    if (index >= vcJobKeys.length) {
+                        processUserListings();
+                        return;
                     }
-                    cursor.continue();
-                } else {
-                    resolve({ data: results, total: count });
-                }
+
+                    const jobRequest = vcJobsStore.get(vcJobKeys[index]);
+                    jobRequest.onsuccess = () => {
+                        const job = jobRequest.result;
+                        if (job) {
+                            vcJobs.push(job);
+                        }
+                        processVcJob(index + 1);
+                    };
+                    jobRequest.onerror = () => {
+                        console.error('Error fetching VC job:', jobRequest.error);
+                        processVcJob(index + 1);
+                    };
+                };
+
+                const processUserListings = () => {
+                    const request = index.openCursor();
+                    request.onsuccess = (event) => {
+                        const cursor = event.target.result;
+                        if (cursor) {
+                            const signup = cursor.value;
+                            if (signup.user_id === user.user.id && signup.status === UserListingStatus.COMPLETED) {
+                                const listingRequest = listingsStore.get(signup.listing_id);
+                                listingRequest.onsuccess = () => {
+                                    const listing = listingRequest.result;
+                                    if (!listing) {
+                                        console.warn(`Listing not found for signup: ${signup.listing_id}`);
+                                        cursor.continue();
+                                        return;
+                                    }
+
+                                    const vcJob = vcJobs.find(job => 
+                                        job.user_id === signup.user_id && 
+                                        job.listing_id === signup.listing_id
+                                    );
+                                    
+                                    if (count >= page * pageSize && count < (page + 1) * pageSize) {
+                                        const validUntil = listing.vc_properties?.expireInDays ? 
+                                            new Date(new Date(signup.last_modified_ts).getTime() + listing.vc_properties.expireInDays * 24 * 60 * 60 * 1000).toISOString() : 
+                                            null;
+                                        
+                                        results.push({
+                                            id: listing.id,
+                                            awardedDate: signup.last_modified_ts,
+                                            validFrom: signup.last_modified_ts,
+                                            validUntil,
+                                            description: listing.description || '',
+                                            credentialSubject: {
+                                                name: user.user.name,
+                                                email: user.user.email,
+                                                achievement: {
+                                                    identifier: listing.id,
+                                                    achievementType: listing.vc_properties?.achievementType || 'Achievement',
+                                                    name: listing.name || 'Unknown Achievement',
+                                                    description: listing.description || ''
+                                                }
+                                            }
+                                        });
+                                    }
+                                    count++;
+                                    cursor.continue();
+                                };
+                                listingRequest.onerror = () => {
+                                    console.error('Error fetching listing:', listingRequest.error);
+                                    cursor.continue();
+                                };
+                            } else {
+                                cursor.continue();
+                            }
+                        } else {
+                            resolve({ data: results, total: count });
+                        }
+                    };
+
+                    request.onerror = (event) => {
+                        console.error('Error fetching achievements:', event.target.error);
+                        reject(event.target.error);
+                    };
+                };
+
+                processVcJob(0);
             };
 
-            request.onerror = (event) => {
+            vcJobsRequest.onerror = (event) => {
+                console.error('Error fetching VC job keys:', event.target.error);
                 reject(event.target.error);
             };
         });
