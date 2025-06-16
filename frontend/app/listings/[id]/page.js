@@ -10,7 +10,6 @@ import { ListingDetails } from "@/components/listings/ListingDetails";
 export default function ListingPage() {
   const { id } = useParams();
   const router = useRouter();
-  const { isInitialized } = useOCAuth();
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -54,9 +53,9 @@ export default function ListingPage() {
   useEffect(() => {
     setLoading(true);
     fetchListingById();
-  }, [id, isInitialized]);
+  }, [id]);
 
-  if (!isInitialized || loading) return <Loading />;
+  if (loading) return <Loading />;
   if (!listing) return null;
   
   return (
