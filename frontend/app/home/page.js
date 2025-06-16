@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import { capitalize, keyBy } from "lodash";
 import { enqueueSnackbar } from "notistack";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import styles from "./home.module.css";
 import { useSearchParams, useRouter } from "next/navigation";
 
@@ -36,6 +36,9 @@ export default function Home() {
   const [total, setTotal] = useState(0);
   const { isRegisteredUser } = useUser();
   const fetchWithAuth = useAuthenticatedFetch();
+
+  const tagsKeyById = useMemo(() => keyBy(tags, "id"), [tags]);
+
   const fetchListingsWithUserSignUps = async (params) => {
     try {
       const response = await fetchWithAuth(`/auth-user/listings?${params}`);
@@ -163,7 +166,6 @@ export default function Home() {
     fetchListings(1);
   };
 
-  const tagsKeyById = keyBy(tags, "id");
   return (
     <div>
       <img src="/assets/banner.jpg" height="300" width="100%" />
