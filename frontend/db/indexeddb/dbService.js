@@ -123,7 +123,12 @@ export class DBService {
     }
 
     // Corresponds to backend/src/auth-user/index.js GET /sign-ups
-    async getUserSignups({ page = 0, pageSize = 10, searchText }) {
+    async getUserSignups({ page = 0, pageSize = 10, searchText, userId }) {
+        if (!userId) {
+            console.warn('[DBService] getUserSignups called without userId');
+            return { data: [], total: 0 };
+        }
+
         const tx = this.db.transaction(['user_listings', 'listings', 'vc_issue_jobs'], 'readonly');
         const userListingsStore = tx.objectStore('user_listings');
         const listingsStore = tx.objectStore('listings');
@@ -166,31 +171,33 @@ export class DBService {
                             const vcStatus = vcPendingCount > 0 ? 'pending' : vcFailedCount > 0 ? 'failed' : 'success';
 
                             if (count >= page * pageSize && count < (page + 1) * pageSize) {
-                                if (!searchText || listing.name.toLowerCase().includes(searchText.toLowerCase())) {
-                                    results.push({
-                                        listing_name: listing.name,
-                                        id: listing.id,
-                                        user_listing_status: signup.status,
-                                        created_ts: signup.created_ts,
-                                        vc_count: vcCount,
-                                        vc_pending_count: vcPendingCount,
-                                        vc_failed_count: vcFailedCount,
-                                        vc_issue_status: vcCount > 0 ? vcStatus : null
-                                    });
-                                }
+                                results.push({
+                                    id: listing.id,
+                                    name: listing.name,
+                                    description: listing.description,
+                                    status: signup.status,
+                                    vc_status: vcStatus,
+                                    vc_count: vcCount,
+                                    created_ts: signup.created_ts,
+                                    last_modified_ts: signup.last_modified_ts
+                                });
                             }
                             count++;
+                            cursor.continue();
                         } catch (error) {
                             console.error('Error processing signup:', error);
+                            cursor.continue();
                         }
+                    } else {
+                        cursor.continue();
                     }
-                    cursor.continue();
                 } else {
                     resolve({ data: results, total: count });
                 }
             };
 
             request.onerror = (event) => {
+                console.error('Error fetching signups:', event.target.error);
                 reject(event.target.error);
             };
         });
