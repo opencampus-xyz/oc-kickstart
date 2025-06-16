@@ -1,42 +1,41 @@
 "use client";
 import { useEffect, useState } from 'react';
+import { initDatabase } from '../db/indexeddb/DBsetup';
+import dbService from '../db/indexeddb/dbService';
 
-export function useDB() {
-    const [db, setDb] = useState(null);
+export const useDB = () => {
+    const [db, setDB] = useState(null);
     const [isInitialized, setIsInitialized] = useState(false);
     const [error, setError] = useState(null);
 
     useEffect(() => {
-        let mounted = true;
-
         const initializeDB = async () => {
+            if (process.env.NEXT_PUBLIC_DB_MODE !== 'indexeddb') {
+                setIsInitialized(true);
+                return;
+            }
+
             try {
-                // Dynamically import DB modules only on client side
-                const { initDatabase } = await import('@/db/indexeddb/DBsetup');
-                const { DBService } = await import('@/db/indexeddb/dbService');
+                await Promise.all([
+                    initDatabase(),
+                    dbService.initPromise
+                ]);
                 
-                await initDatabase();
-                const dbService = new DBService();
-                await dbService.init();
-                
-                if (mounted) {
-                    setDb(dbService);
-                    setIsInitialized(true);
-                }
+                setDB(dbService);
+                setIsInitialized(true);
             } catch (err) {
-                console.error('Failed to initialize database:', err);
-                if (mounted) {
-                    setError(err);
-                }
+                console.error('Failed to initialize IndexedDB:', err);
+                setError(err);
+                setIsInitialized(true);
             }
         };
 
         initializeDB();
-
-        return () => {
-            mounted = false;
-        };
     }, []);
 
-    return { db, isInitialized, error };
-}
+    return {
+        db,
+        isInitialized,
+        error
+    };
+};
