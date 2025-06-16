@@ -25,15 +25,40 @@ export class DBService {
     // ===== backend/src/index.js endpoints =====
     // Corresponds to backend/src/index.js POST /signup and backend/src/signup.js signup()
     async createUser(userData) {
+        console.log('Creating user with data:', userData);
         if (!userData.email) {
             throw new Error("Email is required for user creation");
         }
+        if (!userData.oc_id) {
+            throw new Error("OC ID is required for user creation");
+        }
+
         const tx = this.db.transaction(['users'], 'readwrite');
         const store = tx.objectStore('users');
-        const userDoc = createUserDocument({
-            ...userData,
-            email: userData.email.toLowerCase()
+        const userIndex = store.index('oc_id');
+
+        // Check if user already exists - properly await the request
+        const existingUser = await new Promise((resolve, reject) => {
+            const request = userIndex.get(userData.oc_id);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
         });
+
+        if (existingUser) {
+            console.log('User already exists:', existingUser);
+            return existingUser;
+        }
+
+        // Create new user document
+        const userDoc = createUserDocument({
+            name: userData.name || '',
+            email: userData.email.toLowerCase(),
+            oc_id: userData.oc_id,
+            profile: userData.profile || {},
+            signups: []
+        });
+
+        console.log('Created user document:', userDoc);
         await store.add(userDoc);
         return userDoc;
     }
@@ -45,21 +70,39 @@ export class DBService {
         const adminStore = tx.objectStore('admin_configs');
         const userIndex = userStore.index('oc_id');
         
-        const user = await userIndex.get(ocId);
+        const user = await new Promise((resolve, reject) => {
+            const request = userIndex.get(ocId);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
         if (!user) {
             return null;
         }
 
-        // Get admin status
-        const adminConfig = await adminStore.get('admin_config');
+        const adminConfig = await new Promise((resolve, reject) => {
+            const request = adminStore.get('admin_config');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
         const isAdmin = adminConfig?.admin_ocids?.includes(ocId) || false;
         const isMasterAdmin = adminConfig?.isMasterAdmin === true && adminConfig?.admin_ocids?.includes(ocId);
 
+        const userData = {
+            id: user.id,
+            name: user.name || '',
+            email: user.email || '',
+            oc_id: user.oc_id || ocId,
+            profile: user.profile || {},
+            signups: user.signups || []
+        };
+
         return {
-            ...user,
             isAdmin,
             isMasterAdmin,
-            isRegisteredUser: true
+            isRegisteredUser: true,
+            user: userData
         };
     }
 

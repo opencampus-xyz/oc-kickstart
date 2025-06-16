@@ -14,7 +14,39 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
         let response;
         switch (endpoint) {
             case '/user':
-                response = await dbService.getUserByOCId(ocId);
+                const user = await dbService.getUserByOCId(ocId);
+                if (!user?.user) {
+                    response = {
+                        isAdmin: false,
+                        isMasterAdmin: false,
+                        isRegisteredUser: false,
+                        user: null
+                    };
+                } else {
+                    response = {
+                        isAdmin: user.isAdmin,
+                        isMasterAdmin: user.isMasterAdmin,
+                        isRegisteredUser: user.isRegisteredUser,
+                        user: user.user
+                    };
+                }
+                break;
+
+            case '/signup':
+                const userData = {
+                    name: body.name || '',
+                    email: body.email || '',
+                    oc_id: ocId,
+                    profile: {},
+                    signups: []
+                };
+                response = await dbService.createUser(userData);
+                response = {
+                    isAdmin: false,
+                    isMasterAdmin: false,
+                    isRegisteredUser: true,
+                    user: response
+                };
                 break;
 
             case '/auth-user/update-username':
@@ -34,8 +66,8 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 break;
 
             case '/auth-user/signup-for-listing':
-                const user = await dbService.getUserByOCId(ocId);
-                response = await dbService.signupForListing(user.id, body.listingId);
+                const userForSignup = await dbService.getUserByOCId(ocId);
+                response = await dbService.signupForListing(userForSignup.id, body.listingId);
                 break;
 
             case '/auth-user/sign-ups':
@@ -97,10 +129,6 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 }
                 break;
 
-            case '/signup':
-                response = await dbService.createUser(body);
-                break;
-
             case '/admin/tag/archive/:id':
                 const tagId = url.split('/').pop();
                 response = await dbService.archiveTag(tagId);
@@ -119,11 +147,13 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 throw new Error(`Unsupported endpoint: ${endpoint}`);
         }
 
+        console.log('Response:', response);
         return {
             ok: true,
             json: async () => response
         };
     } catch (error) {
+        console.error('Error in fetchWithAuthToken:', error);
         return {
             ok: false,
             json: async () => ({ error: { message: error.message } })
