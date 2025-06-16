@@ -109,7 +109,9 @@ export default function Home() {
           } else {
             params.delete('tags');
           }
-          router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
+          if (params.toString()) {
+            router.push(`/home?${params.toString()}`);
+          }
         }
       }
     }
@@ -127,8 +129,8 @@ export default function Home() {
       params.delete('tags');
     }
     
-    if (params.toString() || window.location.search) {
-      router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
+    if (params.toString()) {
+      router.push(`/home?${params.toString()}`);
     }
   };
 

@@ -26,7 +26,7 @@ app.use((req, res, next) => authWithToken(req, res, next));
 app.post("/signup", async (req, res, next) => {
   try {
     const { name, email } = req.body;
-    const ocid = req.authenticatedUser.ocid;
+    const ocid = req.authenticatedUser;
     await signup(name, email, ocid);
     res.json({ status: "successful" });
   } catch (error) {

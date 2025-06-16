@@ -1,8 +1,8 @@
 import { addDays } from "date-fns";
 import db from "./db.js";
-import { v5 as uuidv5 } from 'uuid';
+import { v4 as uuidv4 } from 'uuid';
 
-const UUID_NAMESPACE = '6ba7b810-9dad-11d1-80b4-00c04fd430c8'; // UUID namespace for URLs
+const UUID_NAMESPACE = uuidv4();
 
 export const createVCIssueJobs = async (userId, listingId) => {
   // get listing, tags and user details to create the payload
