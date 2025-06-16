@@ -9,7 +9,7 @@ import {
     ListingStatus, 
     ListingTriggerMode,
     VcIssueJobStatus
-} from '@/db/DBsetup';
+} from '@/db/indexeddb/DBsetup';
 
 export class DBService {
     constructor() {
@@ -25,29 +25,58 @@ export class DBService {
     // ===== backend/src/index.js endpoints =====
     // Corresponds to backend/src/index.js POST /signup and backend/src/signup.js signup()
     async createUser(userData) {
+        if (!userData.email) {
+            throw new Error("Email is required for user creation");
+        }
         const tx = this.db.transaction(['users'], 'readwrite');
         const store = tx.objectStore('users');
-        const userDoc = createUserDocument(userData);
+        const userDoc = createUserDocument({
+            ...userData,
+            email: userData.email.toLowerCase()
+        });
         await store.add(userDoc);
         return userDoc;
     }
     
     // Corresponds to backend/src/index.js GET /user and backend/src/auth-user/index.js registeredUserMiddleware()
     async getUserByOCId(ocId) {
-        const tx = this.db.transaction(['users'], 'readonly');
-        const store = tx.objectStore('users');
-        const index = store.index('oc_id');
-        return await index.get(ocId);
+        const tx = this.db.transaction(['users', 'admin_configs'], 'readonly');
+        const userStore = tx.objectStore('users');
+        const adminStore = tx.objectStore('admin_configs');
+        const userIndex = userStore.index('oc_id');
+        
+        const user = await userIndex.get(ocId);
+        if (!user) {
+            return null;
+        }
+
+        // Get admin status
+        const adminConfig = await adminStore.get('admin_config');
+        const isAdmin = adminConfig?.admin_ocids?.includes(ocId) || false;
+        const isMasterAdmin = adminConfig?.isMasterAdmin === true && adminConfig?.admin_ocids?.includes(ocId);
+
+        return {
+            ...user,
+            isAdmin,
+            isMasterAdmin,
+            isRegisteredUser: true
+        };
     }
 
     // ===== backend/src/auth-user/index.js endpoints =====
     // Corresponds to backend/src/auth-user/index.js POST /update-username
-    async updateUsername(userId, username) {
+    async updateUsername(ocId, username) {
         const tx = this.db.transaction(['users'], 'readwrite');
         const store = tx.objectStore('users');
-        const user = await store.get(userId);
+        const index = store.index('oc_id');
+        const user = await index.get(ocId);
+        if (!user) {
+            throw new Error("User not found");
+        }
         user.name = username;
+        user.last_modified_ts = new Date().toISOString();
         await store.put(user);
+        return user;
     }
 
     // Corresponds to backend/src/auth-user/index.js GET /sign-ups
@@ -492,6 +521,87 @@ export class DBService {
         }
         return true;
     }
+
+    // ===== Admin Management =====
+    async getAdminConfig() {
+        const tx = this.db.transaction(['admin_configs'], 'readonly');
+        const store = tx.objectStore('admin_configs');
+        const adminConfig = await store.get('admin_config');
+        return adminConfig || { admin_ocids: [] };
+    }
+
+    async updateAdminConfig(adminOCIDs) {
+        const tx = this.db.transaction(['admin_configs'], 'readwrite');
+        const store = tx.objectStore('admin_configs');
+        const adminConfig = await store.get('admin_config');
+        
+        if (adminConfig) {
+            adminConfig.admin_ocids = adminOCIDs;
+            adminConfig.last_modified_ts = new Date().toISOString();
+            await store.put(adminConfig);
+        } else {
+            const newConfig = createAdminConfigsDocument({
+                admin_ocids: adminOCIDs,
+                isMasterAdmin: false
+            });
+            await store.add(newConfig);
+        }
+        return { admin_ocids: adminOCIDs };
+    }
+
+    async setMasterAdmin(ocId) {
+        const tx = this.db.transaction(['admin_configs'], 'readwrite');
+        const store = tx.objectStore('admin_configs');
+        const index = store.index('isMasterAdmin');
+
+        const existingMasterAdmin = await index.get(true);
+        if (existingMasterAdmin) {
+            throw new Error("A master admin already exists");
+        }
+
+        const adminConfig = createAdminConfigsDocument({
+            admin_ocids: [ocId],
+            isMasterAdmin: true
+        });
+
+        await store.add(adminConfig);
+        return adminConfig;
+    }
+
+    async isMasterAdmin(ocId) {
+        const tx = this.db.transaction(['admin_configs'], 'readonly');
+        const store = tx.objectStore('admin_configs');
+        const index = store.index('isMasterAdmin');
+        const adminConfig = await index.get(true);
+        return adminConfig?.admin_ocids.includes(ocId);
+    }
+
+    async isAdmin(ocId) {
+        const tx = this.db.transaction(['admin_configs'], 'readonly');
+        const store = tx.objectStore('admin_configs');
+        const index = store.index('admin_ocids');
+        const adminConfig = await index.get(ocId);
+        return adminConfig?.admin_ocids.includes(ocId);
+    }
+
+    async makeAdmin(ocId) {
+        const tx = this.db.transaction(['admin_configs'], 'readwrite');
+        const store = tx.objectStore('admin_configs');
+        const index = store.index('admin_ocids');
+        const adminConfig = await index.get(ocId);
+        adminConfig.admin_ocids.push(ocId);
+        await store.put(adminConfig);
+    }
+
+    async removeAdmin(ocId) {
+        const tx = this.db.transaction(['admin_configs'], 'readwrite');
+        const store = tx.objectStore('admin_configs');
+        const index = store.index('admin_ocids');
+        const adminConfig = await index.get(ocId);
+        adminConfig.admin_ocids = adminConfig.admin_ocids.filter(id => id !== ocId);
+        await store.put(adminConfig);
+    }
+
 }
 
 const dbService = new DBService();

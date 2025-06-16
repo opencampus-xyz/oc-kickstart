@@ -28,6 +28,11 @@ const DB_NAME = 'oc_generics_db';
 const DB_VERSION = 2;
 
 export function initDatabase() {
+    // Only run on client side
+    if (typeof window === 'undefined') {
+        return Promise.resolve(null);
+    }
+
     return new Promise((resolve, reject) => {
         const request = indexedDB.open(DB_NAME, DB_VERSION);
 
@@ -52,10 +57,6 @@ export function initDatabase() {
     });
 }
 
-/**
- * Create all object stores and their indexes
- * @param {IDBDatabase} db The database instance
- */
 function createObjectStores(db) {
 
     // Users store
@@ -103,11 +104,10 @@ function createObjectStores(db) {
     vcIssueJobsStore.createIndex('last_modified_ts', 'last_modified_ts', { unique: false });
     vcIssueJobsStore.createIndex('vc_properties', 'vc_properties', { unique: false });
 
-    // Can use other storage method since only admin_ocids is useful and there is only one admin
+    // Admin configs store
     const admin_configsStore = db.createObjectStore('admin_configs', { keyPath: 'id' });
     admin_configsStore.createIndex('admin_ocids', 'admin_ocids', { unique: false });
-    admin_configsStore.createIndex('header_tag_ids', 'header_tag_ids', { unique: false });
-    admin_configsStore.createIndex('image', 'image', { unique: false });
+    admin_configsStore.createIndex('isMasterAdmin', 'isMasterAdmin', { unique: true });
 
 }
 
@@ -120,11 +120,6 @@ export function addTimestamps(obj) {
     };
 }
 
-/**
- * Create a user document with embedded signups
- * @param {Object} userData The user data
- * @returns {Object} The user document
- */
 export function createUserDocument(userData) {
     return addTimestamps({
         ...userData,
@@ -135,11 +130,6 @@ export function createUserDocument(userData) {
     });
 }
 
-/**
- * Create a listing document with embedded tags and signups
- * @param {Object} listingData The listing data
- * @returns {Object} The listing document
- */
 export function createListingDocument(listingData) {
     return addTimestamps({
         ...listingData,
@@ -155,11 +145,6 @@ export function createListingDocument(listingData) {
     });
 }
 
-/**
- * Create a tag document with embedded listings
- * @param {Object} tagData The tag data
- * @returns {Object} The tag document
- */
 export function createTagDocument(tagData) {
     return addTimestamps({
         ...tagData,
@@ -171,11 +156,6 @@ export function createTagDocument(tagData) {
     });
 }
 
-/**
- * Create an admin configs document
- * @param {Object} configData The config data
- * @returns {Object} The admin configs document
- */
 export function createAdminConfigsDocument(configData) {
     return {
         id: 'admin_config',
@@ -184,7 +164,6 @@ export function createAdminConfigsDocument(configData) {
     };
 }
 
-// Export all constants and functions
 export {
     DB_NAME,
     DB_VERSION

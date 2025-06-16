@@ -12,8 +12,8 @@ export function useDB() {
         const initializeDB = async () => {
             try {
                 // Dynamically import DB modules only on client side
-                const { initDatabase } = await import('@/db/DBsetup');
-                const { DBService } = await import('@/db');
+                const { initDatabase } = await import('@/db/indexeddb/DBsetup');
+                const { DBService } = await import('@/db/indexeddb/dbService');
                 
                 await initDatabase();
                 const dbService = new DBService();
