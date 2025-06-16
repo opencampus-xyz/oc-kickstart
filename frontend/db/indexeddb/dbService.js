@@ -205,17 +205,42 @@ export class DBService {
 
     // Corresponds to backend/src/auth-user/index.js POST /signup-for-listing
     async signupForListing(userId, listingId) {
+        console.log('Attempting signup with:', { userId, listingId });
         const tx = this.db.transaction(['users', 'listings', 'user_listings'], 'readwrite');
         const userStore = tx.objectStore('users');
         const listingStore = tx.objectStore('listings');
         const userListingsStore = tx.objectStore('user_listings');
 
-        const existingSignup = await userListingsStore.get([userId, listingId]);
-        if (existingSignup) {
+        // Debug: Check user
+        const user = await new Promise((resolve, reject) => {
+            const request = userStore.get(userId);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        console.log('Found user:', user);
+
+        // Debug: Check listing
+        const listing = await new Promise((resolve, reject) => {
+            const request = listingStore.get(listingId);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        console.log('Found listing:', listing);
+
+        // Debug: Check existing signup
+        const existingSignup = await new Promise((resolve, reject) => {
+            const request = userListingsStore.get([userId, listingId]);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        console.log('Existing signup:', existingSignup);
+
+        if (existingSignup !== undefined) {
+            console.log('Found existing signup, throwing error');
             throw new Error("You've already signed up for this listing");
         }
 
-        const listing = await listingStore.get(listingId);
+        // Check signup limit
         const signupCount = listing.signups.filter(([_, status]) => 
             status === UserListingStatus.APPROVED || status === UserListingStatus.PENDING
         ).length;
@@ -224,6 +249,7 @@ export class DBService {
             throw new Error("Listing signups limit reached");
         }
 
+        // Create new signup
         const signup = {
             user_id: userId,
             listing_id: listingId,
@@ -231,18 +257,33 @@ export class DBService {
             created_ts: new Date().toISOString(),
             last_modified_ts: new Date().toISOString()
         };
-        await userListingsStore.add(signup);
 
-        const user = await userStore.get(userId);
+        // Add signup
+        await new Promise((resolve, reject) => {
+            const request = userListingsStore.add(signup);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+
+        // Update user's signups
         user.signups.push({ 
             listing_id: listingId, 
             status: UserListingStatus.PENDING, 
             created_ts: signup.created_ts 
         });
-        await userStore.put(user);
+        await new Promise((resolve, reject) => {
+            const request = userStore.put(user);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
 
+        // Update listing's signups
         listing.signups.push([userId, UserListingStatus.PENDING]);
-        await listingStore.put(listing);
+        await new Promise((resolve, reject) => {
+            const request = listingStore.put(listing);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
 
         return signup;
     }
