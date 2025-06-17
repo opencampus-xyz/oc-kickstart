@@ -84,6 +84,8 @@ export class DBService {
     
     // Corresponds to backend/src/index.js GET /user and backend/src/auth-user/index.js registeredUserMiddleware()
     async getUserByOCId(ocId) {
+        await this.ensureInitialized();
+        
         const tx = this.db.transaction(['users', 'admin_configs'], 'readonly');
         const userStore = tx.objectStore('users');
         const adminStore = tx.objectStore('admin_configs');
@@ -808,10 +810,12 @@ export class DBService {
             const vcJobsRequest = vcJobsStore.getAllKeys();
             vcJobsRequest.onsuccess = () => {
                 const vcJobKeys = vcJobsRequest.result;
+                console.log('[DBService] Found VC job keys:', vcJobKeys);
                 const vcJobs = [];
                 
                 const processVcJob = (index) => {
                     if (index >= vcJobKeys.length) {
+                        console.log('[DBService] All VC jobs processed:', vcJobs);
                         processUserListings();
                         return;
                     }
@@ -848,10 +852,11 @@ export class DBService {
 
                                     const vcJob = vcJobs.find(job => 
                                         job.user_id === signup.user_id && 
-                                        job.listing_id === signup.listing_id
+                                        job.listing_id === signup.listing_id &&
+                                        job.status === VcIssueJobStatus.SUCCESS
                                     );
                                     
-                                    if (count >= page * pageSize && count < (page + 1) * pageSize) {
+                                    if (vcJob && count >= (page - 1) * pageSize && count < page * pageSize) {
                                         const validUntil = listing.vc_properties?.expireInDays ? 
                                             new Date(new Date(signup.last_modified_ts).getTime() + listing.vc_properties.expireInDays * 24 * 60 * 60 * 1000).toISOString() : 
                                             null;
@@ -912,7 +917,6 @@ export class DBService {
         const usersStore = tx.objectStore('users');
         const listingsStore = tx.objectStore('listings');
         
-        // Get user and listing details
         const user = await new Promise((resolve, reject) => {
             const request = usersStore.get(userId);
             request.onsuccess = () => resolve(request.result);
@@ -932,7 +936,6 @@ export class DBService {
         const now = new Date();
         const vcProperties = listing.vc_properties || {};
         
-        // Create the payload similar to backend
         const payload = {
             holderOcId: user.oc_id,
             credentialPayload: {
@@ -975,14 +978,10 @@ export class DBService {
         return job;
     }
 
-    // Helper method to filter listings
     matchesListingFilters(listing, { searchText, searchTags, searchStatus }) {
-        // Filter by status (skip if searchStatus is "all")
         if (searchStatus && searchStatus !== "all" && listing.status !== searchStatus) {
             return false;
         }
-
-        // Filter by search text (name or description)
         if (searchText) {
             const searchLower = searchText.toLowerCase();
             const nameMatch = listing.name?.toLowerCase().includes(searchLower);
@@ -991,8 +990,6 @@ export class DBService {
                 return false;
             }
         }
-
-        // Filter by tags
         if (searchTags && searchTags.length > 0) {
             const listingTags = listing.tags || [];
             const hasAllTags = searchTags.every(tag => listingTags.includes(tag));
@@ -1021,27 +1018,22 @@ export class DBService {
         const tx = this.db.transaction(['admin_configs'], adminOCIDs !== null ? 'readwrite' : 'readonly');
         const store = tx.objectStore('admin_configs');
         
-        // Debug: Get all admin configs to see what's in the store
         const allConfigs = await store.getAll();
-        console.log('All admin configs in store:', allConfigs);
         
         const adminConfig = await new Promise((resolve, reject) => {
             const request = store.get('admin_config');
             request.onsuccess = () => resolve(request.result);
             request.onerror = () => reject(request.error);
         });
-        console.log('Admin config by ID "admin_config":', adminConfig);
         
         if (adminOCIDs !== null) {
             const config = createAdminConfigsDocument({
                 admin_ocids: adminOCIDs,
                 isMasterAdmin: false
             });
-            console.log('Creating/updating admin config:', config);
             await store.put(config);
             return { message: "Admin configs updated successfully" };
         } else {
-            console.log('Returning admin_ocids:', adminConfig?.admin_ocids);
             return { admin_ocids: adminConfig?.admin_ocids || [] };
         }
     }
@@ -1129,15 +1121,12 @@ export class DBService {
             const request = store.getAll();
             request.onsuccess = (event) => {
                 const users = event.target.result || [];
-                // Filter by search text if provided
                 const filteredUsers = searchText 
                     ? users.filter(user => user.search_text.toLowerCase().includes(searchText.toLowerCase()))
                     : users;
                 
-                // Sort by created_ts in descending order (newest first)
                 filteredUsers.sort((a, b) => new Date(b.created_ts) - new Date(a.created_ts));
                 
-                // Apply pagination
                 const start = page * pageSize;
                 const end = start + pageSize;
                 const paginatedUsers = filteredUsers.slice(start, end);
@@ -1194,7 +1183,6 @@ export class DBService {
                 
                 const signups = [];
                 
-                // Get signups from user_listings table
                 const userListingsIndex = userListingsStore.index('listing_id');
                 const signupsRequest = userListingsIndex.openCursor();
                 
@@ -1204,7 +1192,6 @@ export class DBService {
                         const userListing = cursor.value;
                         if (userListing.listing_id === listingId) {
                             try {
-                                // Get user info
                                 const user = await new Promise((resolve, reject) => {
                                     const userRequest = userStore.get(userListing.user_id);
                                     userRequest.onsuccess = () => resolve(userRequest.result);
@@ -1212,7 +1199,6 @@ export class DBService {
                                 });
                                 
                                 if (user) {
-                                    // Get VC job status for this signup
                                     const vcJobs = [];
                                     const vcJobsRequest = vcJobsStore.openCursor();
                                     vcJobsRequest.onsuccess = (vcEvent) => {
@@ -1224,7 +1210,6 @@ export class DBService {
                                             }
                                             vcCursor.continue();
                                         } else {
-                                            // VC jobs cursor finished, process the results
                                             let vcStatus = null;
                                             
                                             if (vcJobs.length > 0) {
