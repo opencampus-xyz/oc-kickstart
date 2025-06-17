@@ -46,7 +46,7 @@ export const UserProvider = ({ children }) => {
 
   // Add effect to handle automatic redirects for unregistered users
   useEffect(() => {
-    if (isInitialized && authState?.isAuthenticated && !user.isRegisteredUser) {
+    if (isInitialized && authState?.isAuthenticated && !user.isRegisteredUser && !user.isMasterAdmin && !user.isAdmin) {
       // Only redirect if we're not already on the signup page to prevent loops
       if (pathname !== '/signup') {
         router.replace('/signup');
