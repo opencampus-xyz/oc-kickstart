@@ -46,12 +46,12 @@ export const createVCIssueJobs = async (userId, listingId) => {
   };
 
   const generateOCAPayload = (vcProperties, description, identifier, title) => {
-    const uniqueString = `${userId}${identifier}${title}`;
-    const issuerRefId = uuidv5(uniqueString, UUID_NAMESPACE);
+    const uniqueString = `${userId}_${identifier}`;
+    const issuerReferenceId = uuidv5(uniqueString, UUID_NAMESPACE);
 
     return {
       holderOcId: userDetails.ocId,
-      issuerRefId: issuerRefId,
+      issuerReferenceId: issuerReferenceId,
       credentialPayload: {
         awardedDate: now,
         validFrom: now,
@@ -84,8 +84,8 @@ export const createVCIssueJobs = async (userId, listingId) => {
       generateOCAPayload(
         tag.vc_properties,
         tag.description,
-        tag.id,
-        `${listingVcProperties.title}${tag.vc_properties.title}`
+        `${listingId}_${tag.id}`,
+        `${listingVcProperties.title}_${tag.vc_properties.title}`
       )
     ),
   ];
