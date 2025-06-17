@@ -145,6 +145,7 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 break;
 
             case '/auth-user/listings':
+                const userForListings = await dbService.getUserByOCId(ocId);
                 response = await dbService.getListings({
                     page: parseInt(queryParams.page) || 0,
                     pageSize: parseInt(queryParams.pageSize) || 10,
@@ -152,7 +153,7 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                     searchTags: queryParams.searchTags?.split(','),
                     searchStatus: queryParams.searchStatus,
                     includeUserSignups: true,
-                    userId: ocId
+                    userId: userForListings?.user?.id
                 });
                 break;
 

@@ -672,7 +672,7 @@ export class DBService {
                     if (statusMatches && this.matchesListingFilters(listing, { searchText, searchTags, searchStatus })) {
                         if (count >= page * pageSize && count < (page + 1) * pageSize) {
                             if (includeUserSignups && userId) {
-                                listing.sign_up_status = this.getUserSignupStatus(listing, userId);
+                                listing.sign_up_status = await this.getUserSignupStatus(listing, userId);
                             }
                             
                             // Get signups count from user_listings table
@@ -1186,15 +1186,12 @@ export class DBService {
                                         user_id: userListing.user_id,
                                         listing_id: userListing.listing_id,
                                         status: userListing.status,
-                                        created_at: userListing.created_at,
-                                        updated_at: userListing.updated_at,
-                                        user: {
-                                            id: user.id,
-                                            name: user.name,
-                                            email: user.email,
-                                            oc_id: user.oc_id
-                                        },
-                                        vc_job_status: userListing.vc_job_status || null
+                                        created_ts: userListing.created_ts,
+                                        last_modified_ts: userListing.last_modified_ts,
+                                        user_name: user.name,
+                                        user_oc_id: user.oc_id,
+                                        trigger_mode: listing.trigger_mode,
+                                        vc_issue_status: userListing.vc_job_status || null
                                     });
                                 }
                             } catch (error) {
