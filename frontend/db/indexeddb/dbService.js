@@ -810,12 +810,10 @@ export class DBService {
             const vcJobsRequest = vcJobsStore.getAllKeys();
             vcJobsRequest.onsuccess = () => {
                 const vcJobKeys = vcJobsRequest.result;
-                console.log('[DBService] Found VC job keys:', vcJobKeys);
                 const vcJobs = [];
                 
                 const processVcJob = (index) => {
                     if (index >= vcJobKeys.length) {
-                        console.log('[DBService] All VC jobs processed:', vcJobs);
                         processUserListings();
                         return;
                     }
