@@ -22,6 +22,14 @@ export class DBService {
         return this.db;
     }
 
+    // Helper method to ensure database is initialized
+    async ensureInitialized() {
+        await this.initPromise;
+        if (!this.db) {
+            throw new Error('Database failed to initialize');
+        }
+    }
+
     // ===== backend/src/index.js endpoints =====
     // Corresponds to backend/src/index.js POST /signup and backend/src/signup.js signup()
     async createUser(userData) {
@@ -514,6 +522,9 @@ export class DBService {
 
     // Corresponds to backend/src/admin/index.js GET /tags
     async getTags() {
+        // Ensure database is initialized
+        await this.ensureInitialized();
+
         const tx = this.db.transaction(['tags'], 'readonly');
         const store = tx.objectStore('tags');
         const index = store.index('created_ts');
@@ -583,6 +594,9 @@ export class DBService {
     // ===== backend/src/public/index.js endpoints =====
     // Corresponds to backend/src/public/index.js GET /listings
     async getListings({ page = 0, pageSize = 10, searchText, searchTags, searchStatus, includeUserSignups = false, userId = null }) {
+        // Ensure database is initialized
+        await this.ensureInitialized();
+        
         const tx = this.db.transaction(['listings'], 'readonly');
         const store = tx.objectStore('listings');
         const index = store.index('name');
