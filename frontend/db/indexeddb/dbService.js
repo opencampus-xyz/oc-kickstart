@@ -593,7 +593,7 @@ export class DBService {
 
     // ===== backend/src/public/index.js endpoints =====
     // Corresponds to backend/src/public/index.js GET /listings
-    async getListings({ page = 0, pageSize = 10, searchText, searchTags, searchStatus, includeUserSignups = false, userId = null }) {
+    async getListings({ page = 0, pageSize = 10, searchText, searchTags, searchStatus, includeUserSignups = false, userId = null, showAllStatuses = false }) {
         // Ensure database is initialized
         await this.ensureInitialized();
         
@@ -605,13 +605,18 @@ export class DBService {
             const request = index.openCursor();
             const results = [];
             let count = 0;
+            let allListings = [];
             
             request.onsuccess = (event) => {
                 const cursor = event.target.result;
                 if (cursor) {
                     const listing = cursor.value;
-                    // Only include active listings by default
-                    if (listing.status === ListingStatus.ACTIVE && this.matchesListingFilters(listing, { searchText, searchTags, searchStatus })) {
+                    allListings.push(listing);
+                    console.log('Found listing:', { id: listing.id, name: listing.name, status: listing.status });
+                    
+                    // Check if listing should be included based on status and filters
+                    const statusMatches = showAllStatuses || listing.status === ListingStatus.ACTIVE;
+                    if (statusMatches && this.matchesListingFilters(listing, { searchText, searchTags, searchStatus })) {
                         if (count >= page * pageSize && count < (page + 1) * pageSize) {
                             if (includeUserSignups && userId) {
                                 listing.sign_up_status = this.getUserSignupStatus(listing, userId);
@@ -628,6 +633,8 @@ export class DBService {
                     }
                     cursor.continue();
                 } else {
+                    console.log('All listings in database:', allListings.map(l => ({ id: l.id, name: l.name, status: l.status })));
+                    console.log('Listings found:', count);
                     resolve({ listings: results, total: count });
                 }
             };

@@ -43,22 +43,12 @@ export const CreateEditListing = ({ listing, refetch }) => {
         body: JSON.stringify(formJson),
       });
       const data = await response.json();
-      
-      // Wait a moment for the transaction to be committed
-      await new Promise(resolve => setTimeout(resolve, 100));
-      
-      // Verify the listing exists before navigating
-      const verifyResponse = await fetchWithAuth(`/admin/listing/${data.id}`);
-      if (!verifyResponse.ok) {
-        throw new Error('Failed to verify listing was created');
-      }
-      
       enqueueSnackbar("Listing created successfully", { variant: "success" });
+
       return data;
     } catch (error) {
-      console.error('Error in createListing:', error);
-      enqueueSnackbar(error.message || "Error creating listing", { variant: "error" });
-      throw error; // Re-throw to prevent navigation
+      console.error(error);
+      enqueueSnackbar("Error creating listing", { variant: "error" });
     }
   };
 
@@ -124,8 +114,8 @@ export const CreateEditListing = ({ listing, refetch }) => {
 
   const getActiveTags = async () => {
     const response = await fetchWithAuth("/public/tags");
-    const data = response.json ? await response.json() : response;
-    setTags(data.data || []);
+    const data = await response.json();
+    setTags(data);
   };
 
   useEffect(() => {
@@ -139,22 +129,15 @@ export const CreateEditListing = ({ listing, refetch }) => {
 
   const onSubmit = async (event) => {
     event.preventDefault();
-    try {
-      const formData = new FormData(event.currentTarget);
-      const formJson = Object.fromEntries(formData.entries());
-      formJson.tags = compact(selectedTags);
-      
-      if (isEdit) {
-        await updateListing(listing.id, formJson);
-      } else {
-        const data = await createListing(formJson);
-        if (data?.id) {
-          router.push(`/admin/listings/${data.id}`);
-        }
-      }
-    } catch (error) {
-      console.error('Error in onSubmit:', error);
-      // Error is already shown by createListing/updateListing
+    const formData = new FormData(event.currentTarget);
+    const formJson = Object.fromEntries(formData.entries());
+    formJson.tags = compact(selectedTags);
+    if (isEdit) {
+      await updateListing(listing.id, formJson);
+    } else {
+      const data = await createListing(formJson);
+
+      router.push(`/admin/listings/${data.id}`);
     }
   };
 

@@ -147,6 +147,7 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                     pageSize: parseInt(queryParams.pageSize) || 10,
                     searchText: queryParams.searchText,
                     includeUserSignups: false,
+                    showAllStatuses: true
                 });
                 response = {
                     data: listingsResponse.listings,
