@@ -803,30 +803,33 @@ export class DBService {
     }
 
     // ===== Admin Management =====
-    async getAdminConfig() {
-        const tx = this.db.transaction(['admin_configs'], 'readonly');
+    async adminConfig(adminOCIDs = null) {
+        const tx = this.db.transaction(['admin_configs'], adminOCIDs !== null ? 'readwrite' : 'readonly');
         const store = tx.objectStore('admin_configs');
-        const adminConfig = await store.get('admin_config');
-        return adminConfig || { admin_ocids: [] };
-    }
-
-    async updateAdminConfig(adminOCIDs) {
-        const tx = this.db.transaction(['admin_configs'], 'readwrite');
-        const store = tx.objectStore('admin_configs');
-        const adminConfig = await store.get('admin_config');
         
-        if (adminConfig) {
-            adminConfig.admin_ocids = adminOCIDs;
-            adminConfig.last_modified_ts = new Date().toISOString();
-            await store.put(adminConfig);
-        } else {
-            const newConfig = createAdminConfigsDocument({
+        // Debug: Get all admin configs to see what's in the store
+        const allConfigs = await store.getAll();
+        console.log('All admin configs in store:', allConfigs);
+        
+        const adminConfig = await new Promise((resolve, reject) => {
+            const request = store.get('admin_config');
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        console.log('Admin config by ID "admin_config":', adminConfig);
+        
+        if (adminOCIDs !== null) {
+            const config = createAdminConfigsDocument({
                 admin_ocids: adminOCIDs,
                 isMasterAdmin: false
             });
-            await store.add(newConfig);
+            console.log('Creating/updating admin config:', config);
+            await store.put(config);
+            return { message: "Admin configs updated successfully" };
+        } else {
+            console.log('Returning admin_ocids:', adminConfig?.admin_ocids);
+            return { admin_ocids: adminConfig?.admin_ocids || [] };
         }
-        return { admin_ocids: adminOCIDs };
     }
 
     async setMasterAdmin(ocId) {
@@ -834,7 +837,12 @@ export class DBService {
         const store = tx.objectStore('admin_configs');
         const index = store.index('isMasterAdmin');
 
-        const existingMasterAdmin = await index.get(true);
+        const existingMasterAdmin = await new Promise((resolve, reject) => {
+            const request = index.get("true");
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        
         if (existingMasterAdmin) {
             throw new Error("A master admin already exists");
         }
@@ -844,7 +852,12 @@ export class DBService {
             isMasterAdmin: true
         });
 
-        await store.add(adminConfig);
+        await new Promise((resolve, reject) => {
+            const request = store.put(adminConfig);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        
         return adminConfig;
     }
 
@@ -852,7 +865,13 @@ export class DBService {
         const tx = this.db.transaction(['admin_configs'], 'readonly');
         const store = tx.objectStore('admin_configs');
         const index = store.index('isMasterAdmin');
-        const adminConfig = await index.get(true);
+        
+        const adminConfig = await new Promise((resolve, reject) => {
+            const request = index.get(true);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        
         return adminConfig?.admin_ocids.includes(ocId);
     }
 
@@ -860,7 +879,13 @@ export class DBService {
         const tx = this.db.transaction(['admin_configs'], 'readonly');
         const store = tx.objectStore('admin_configs');
         const index = store.index('admin_ocids');
-        const adminConfig = await index.get(ocId);
+        
+        const adminConfig = await new Promise((resolve, reject) => {
+            const request = index.get(ocId);
+            request.onsuccess = () => resolve(request.result);
+            request.onerror = () => reject(request.error);
+        });
+        
         return adminConfig?.admin_ocids.includes(ocId);
     }
 

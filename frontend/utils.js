@@ -1,7 +1,7 @@
 import { fetchWithAuthToken as indexedFetchWithAuthToken, publicFetch as indexedPublicFetch } from './indexedUtils';
 import { fetchWithAuthToken as sqlFetchWithAuthToken, publicFetch as sqlPublicFetch } from './sqlUtils';
 
-const getDBMode = () => {
+export const getDBMode = () => {
     return process.env.NEXT_PUBLIC_DB_MODE || 'backend';
 };
 

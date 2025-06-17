@@ -101,13 +101,13 @@ export default function Home() {
         enqueueSnackbar("Error fetching tags", {
           variant: "error",
         });
-        setTags([]); // Set empty array on error
+        setTags([]);
       }
       return;
     }
 
     if (!isInitialized || !db) {
-      return; // Don't try to fetch if DB isn't ready
+      return;
     }
 
     try {
@@ -118,17 +118,16 @@ export default function Home() {
       enqueueSnackbar("Error fetching tags", {
         variant: "error",
       });
-      setTags([]); // Set empty array on error
+      setTags([]);
     }
   };
 
   useEffect(() => {
-    // Only run the effect if we're in backend mode or if the DB is initialized
     if (isBackendMode || (isInitialized && db)) {
       fetchTags();
       fetchListings();
     }
-  }, [isInitialized, db, isRegisteredUser, searchTags, page, searchStatus]); // Remove isBackendMode from deps since it's constant
+  }, [isInitialized, db, isRegisteredUser, searchTags, page, searchStatus]);
 
   const handleChangeTags = (e) => {
     setPage(1);

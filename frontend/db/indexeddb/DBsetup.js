@@ -160,7 +160,7 @@ export function createAdminConfigsDocument(configData) {
     return {
         id: 'admin_config',
         admin_ocids: configData.admin_ocids || [],
-        ...addTimestamps(configData)
+        isMasterAdmin: configData.isMasterAdmin || false,
     };
 }
 

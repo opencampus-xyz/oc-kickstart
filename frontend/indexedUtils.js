@@ -169,16 +169,6 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 response = listing;
                 break;
             }
-
-            case '/master-admin/admin-configs':
-                if (options.method === 'GET') {
-                    const adminConfig = await dbService.getAdminConfig();
-                    response = adminConfig;
-                } else if (options.method === 'POST') {
-                    response = await dbService.updateAdminConfig(body.adminOCIDs.split(','));
-                }
-                break;
-
             case '/admin/tag/archive/:id':
                 const tagId = url.split('/').pop();
                 response = await dbService.archiveTag(tagId);
@@ -191,6 +181,18 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
 
             case '/admin/listing/signups/issue-oca':
                 response = await dbService.createVCIssueJob(body.userId, body.listingId);
+                break;
+            
+            case '/master-admin/admin-configs':
+                if (options.method === 'POST') {
+                    response = await dbService.adminConfig(body.adminOCIDs ? body.adminOCIDs.split(',') : []);
+                } else {
+                    response = await dbService.adminConfig();
+                }
+                break;
+
+            case '/demo/set-master-admin':
+                response = await dbService.setMasterAdmin(body.ocId);
                 break;
 
             default:

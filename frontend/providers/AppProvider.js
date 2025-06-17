@@ -9,6 +9,7 @@ import {
   Logout as LogoutIcon,
   People,
   Person,
+  Settings,
   Tune,
 } from "@mui/icons-material";
 import { Button } from "@mui/material";
@@ -20,6 +21,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { useUser } from "./UserProvider";
+import { useState } from "react";
+import { getDBMode } from "@/utils";
 
 const theme = createTheme({
   palette: {
@@ -51,6 +54,7 @@ const Logout = () => {
 export const AppProvider = ({ children }) => {
   const { authState } = useOCAuth();
   const { isRegisteredUser, isAdmin, isMasterAdmin, user } = useUser();
+  const [isDemoUser, setIsDemoUser] = useState(getDBMode() === 'indexeddb' ? true : false);
 
   const adminNavigation = [
     {
@@ -94,11 +98,16 @@ export const AppProvider = ({ children }) => {
     { kind: "header", title: "Master Admin" },
     { segment: "admin-configs", title: "Admin Configs", icon: <Tune /> },
   ];
+  const demoNavigation = [
+    { kind: "header", title: "Demo" },
+    { segment: "demo/change-permissions", title: "Change Permissions", icon: <Settings /> },
+  ];
 
   const navigation = [
     ...(isRegisteredUser ? userNavigation() : unregisteredUserNavigation()),
     ...(isAdmin ? adminNavigation : []),
     ...(isMasterAdmin ? masterAdminNavigation : []),
+    ...(isDemoUser ? demoNavigation : []),
   ];
 
   const toolbarActions = () => {
