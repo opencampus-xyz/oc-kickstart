@@ -123,8 +123,9 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
 
             case '/tags':
             case '/public/tags': {
-                const response = await dbService.getTags();
-                return response.data;
+                const tagsResponse = await dbService.getTags();
+                response = tagsResponse.data;
+                break;
             }
 
             case '/admin/users': {
@@ -248,7 +249,8 @@ export const publicFetch = async (url, options = {}) => {
 
                 case '/tags':
                 case '/public/tags':
-                    response = await dbService.getTags();
+                    const tagsResponse = await dbService.getTags();
+                    response = tagsResponse.data;
                     break;
 
                 default:

@@ -34,18 +34,18 @@ export const UserProvider = ({ children }) => {
       return;
     }
 
-    try {
-      const response = await fetchWithAuth("/user", {
-        method: "GET",
-      });
-      const data = await response.json();
-      setUser(data);
-    } catch (error) {
+        try {
+          const response = await fetchWithAuth("/user", {
+            method: "GET",
+          });
+          const data = await response.json();
+          setUser(data);
+        } catch (error) {
       if (authState?.isAuthenticated) {
-        enqueueSnackbar("Error fetching user", {
-          variant: "error",
-        });
-      }
+          enqueueSnackbar("Error fetching user", {
+            variant: "error",
+          });
+        }
       setUser({
         isMasterAdmin: false,
         isAdmin: false,
