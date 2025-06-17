@@ -173,7 +173,7 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                     page: parseInt(queryParams.page) || 0,
                     pageSize: parseInt(queryParams.pageSize) || 10,
                     searchText: queryParams.searchText,
-                    userId: userForSignups.id
+                    userId: userForSignups?.user?.id
                 });
                 break;
 
