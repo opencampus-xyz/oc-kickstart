@@ -10,6 +10,7 @@ import {
     ListingTriggerMode,
     VcIssueJobStatus
 } from '@/db/indexeddb/DBsetup';
+import VCIssuerService from './vc-issuer.js';
 
 export class DBService {
     constructor() {
@@ -19,6 +20,16 @@ export class DBService {
 
     async init() {
         this.db = await initDatabase();
+        
+        // Start the VC issuer service after database is initialized
+        try {
+            const vcIssuer = VCIssuerService.getInstance();
+            console.log('Starting VC issuer service...');
+            vcIssuer.startService(Math.max(30000, (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000));
+        } catch (error) {
+            console.error('Failed to start VC issuer service:', error);
+        }
+        
         return this.db;
     }
 
@@ -187,9 +198,21 @@ export class DBService {
                                 } else {
                                     // VC jobs cursor finished, process the results
                                     const vcCount = vcJobs.length;
-                                    const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
-                                    const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
-                                    const vcStatus = vcPendingCount > 0 ? 'pending' : vcFailedCount > 0 ? 'failed' : 'success';
+                                    let vcStatus = null;
+                                    
+                                    if (vcCount > 0) {
+                                        const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
+                                        const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
+                                        const vcSuccessCount = vcJobs.filter(job => job.status === VcIssueJobStatus.SUCCESS).length;
+                                        
+                                        if (vcPendingCount > 0) {
+                                            vcStatus = 'pending';
+                                        } else if (vcFailedCount > 0) {
+                                            vcStatus = 'failed';
+                                        } else if (vcSuccessCount > 0) {
+                                            vcStatus = 'success';
+                                        }
+                                    }
 
                                     if (count >= page * pageSize && count < (page + 1) * pageSize) {
                                         const resultItem = {
@@ -1154,10 +1177,11 @@ export class DBService {
         await this.initPromise;
         
         return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['listings', 'users', 'user_listings'], 'readonly');
+            const transaction = this.db.transaction(['listings', 'users', 'user_listings', 'vc_issue_jobs'], 'readonly');
             const listingStore = transaction.objectStore('listings');
             const userStore = transaction.objectStore('users');
             const userListingsStore = transaction.objectStore('user_listings');
+            const vcJobsStore = transaction.objectStore('vc_issue_jobs');
             
             const listingRequest = listingStore.get(listingId);
             
@@ -1188,24 +1212,65 @@ export class DBService {
                                 });
                                 
                                 if (user) {
-                                    signups.push({
-                                        id: userListing.id,
-                                        user_id: userListing.user_id,
-                                        listing_id: userListing.listing_id,
-                                        status: userListing.status,
-                                        created_ts: userListing.created_ts,
-                                        last_modified_ts: userListing.last_modified_ts,
-                                        user_name: user.name,
-                                        user_oc_id: user.oc_id,
-                                        trigger_mode: listing.trigger_mode,
-                                        vc_issue_status: userListing.vc_job_status || null
-                                    });
+                                    // Get VC job status for this signup
+                                    const vcJobs = [];
+                                    const vcJobsRequest = vcJobsStore.openCursor();
+                                    vcJobsRequest.onsuccess = (vcEvent) => {
+                                        const vcCursor = vcEvent.target.result;
+                                        if (vcCursor) {
+                                            const job = vcCursor.value;
+                                            if (job.user_id === userListing.user_id && job.listing_id === userListing.listing_id) {
+                                                vcJobs.push(job);
+                                            }
+                                            vcCursor.continue();
+                                        } else {
+                                            // VC jobs cursor finished, process the results
+                                            let vcStatus = null;
+                                            
+                                            if (vcJobs.length > 0) {
+                                                const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
+                                                const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
+                                                const vcSuccessCount = vcJobs.filter(job => job.status === VcIssueJobStatus.SUCCESS).length;
+                                                
+                                                if (vcPendingCount > 0) {
+                                                    vcStatus = 'pending';
+                                                } else if (vcFailedCount > 0) {
+                                                    vcStatus = 'failed';
+                                                } else if (vcSuccessCount > 0) {
+                                                    vcStatus = 'success';
+                                                }
+                                            }
+                                            
+                                            signups.push({
+                                                id: userListing.id,
+                                                user_id: userListing.user_id,
+                                                listing_id: userListing.listing_id,
+                                                status: userListing.status,
+                                                created_ts: userListing.created_ts,
+                                                last_modified_ts: userListing.last_modified_ts,
+                                                user_name: user.name,
+                                                user_oc_id: user.oc_id,
+                                                trigger_mode: listing.trigger_mode,
+                                                vc_issue_status: vcStatus
+                                            });
+                                            
+                                            cursor.continue();
+                                        }
+                                    };
+                                    vcJobsRequest.onerror = (error) => {
+                                        console.error('Error fetching VC jobs:', error);
+                                        cursor.continue();
+                                    };
+                                } else {
+                                    cursor.continue();
                                 }
                             } catch (error) {
                                 console.warn(`Failed to fetch user ${userListing.user_id}:`, error);
+                                cursor.continue();
                             }
+                        } else {
+                            cursor.continue();
                         }
-                        cursor.continue();
                     } else {
                         resolve(signups);
                     }
