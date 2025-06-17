@@ -666,7 +666,6 @@ export class DBService {
                 if (cursor) {
                     const listing = cursor.value;
                     allListings.push(listing);
-                    console.log('Found listing:', { id: listing.id, name: listing.name, status: listing.status });
                     
                     // Check if listing should be included based on status and filters
                     const statusMatches = showAllStatuses || listing.status === ListingStatus.ACTIVE;
@@ -676,34 +675,22 @@ export class DBService {
                                 listing.sign_up_status = this.getUserSignupStatus(listing, userId);
                             }
                             
-                            // Debug: Log the signups array to see what's in it
-                            console.log('Listing signups array:', listing.signups);
-                            console.log('Listing ID:', listing.id);
-                            
                             // Get signups count from user_listings table
                             const signupsCount = await new Promise((resolve) => {
                                 const userListingsIndex = userListingsStore.index('listing_id');
-                                console.log('Looking for signups with listing_id:', listing.id);
-                                
                                 const signupsRequest = userListingsIndex.openCursor();
                                 let count = 0;
-                                let totalSignups = 0;
                                 
                                 signupsRequest.onsuccess = (event) => {
                                     const signupCursor = event.target.result;
                                     if (signupCursor) {
                                         const signup = signupCursor.value;
-                                        totalSignups++;
-                                        console.log('Found signup:', signup);
-                                        
                                         if (signup.listing_id === listing.id && 
                                             (signup.status === 'approved' || signup.status === 'pending' || signup.status === 'completed')) {
                                             count++;
-                                            console.log('Matching signup found, count now:', count);
                                         }
                                         signupCursor.continue();
                                     } else {
-                                        console.log('Total signups checked:', totalSignups, 'Matching count:', count);
                                         resolve(count);
                                     }
                                 };
@@ -714,29 +701,22 @@ export class DBService {
                                 };
                             });
                             
-                            console.log('Calculated signups count for listing', listing.id, ':', signupsCount);
-                            
                             // Fallback: Also check the listing's signups array
                             let fallbackCount = 0;
                             if (listing.signups && Array.isArray(listing.signups)) {
-                                console.log('Listing signups array details:', listing.signups);
                                 fallbackCount = listing.signups.filter((signup) => {
                                     if (Array.isArray(signup) && signup.length >= 2) {
                                         const status = signup[1];
-                                        console.log('Array signup status:', status);
                                         return status === 'approved' || status === 'pending' || status === 'completed';
                                     } else if (signup && typeof signup === 'object' && signup.status) {
-                                        console.log('Object signup status:', signup.status);
                                         return signup.status === 'approved' || signup.status === 'pending' || signup.status === 'completed';
                                     }
                                     return false;
                                 }).length;
-                                console.log('Fallback count from listing.signups:', fallbackCount);
                             }
                             
                             // Use the higher count between the two methods
                             const finalSignupsCount = Math.max(signupsCount, fallbackCount);
-                            console.log('Final signups count:', finalSignupsCount);
                             
                             // Get tag names for this listing
                             const tagNames = [];
@@ -767,8 +747,6 @@ export class DBService {
                     }
                     cursor.continue();
                 } else {
-                    console.log('All listings in database:', allListings.map(l => ({ id: l.id, name: l.name, status: l.status })));
-                    console.log('Listings found:', count);
                     resolve({ listings: results, total: count });
                 }
             };
@@ -1154,7 +1132,6 @@ export class DBService {
             const request = listingStore.getAll();
             
             request.onsuccess = () => {
-                console.log('All listings:', request.result);
                 resolve(request.result);
             };
             
@@ -1167,113 +1144,78 @@ export class DBService {
 
     // Corresponds to backend/src/admin/index.js GET /listing/signups/:id
     async getListingSignups(listingId) {
-        // Ensure database is initialized
-        await this.ensureInitialized();
-        
-        console.log('Getting signups for listing:', listingId);
-        
-        const tx = this.db.transaction(['user_listings', 'users', 'listings', 'vc_issue_jobs'], 'readonly');
-        const userListingsStore = tx.objectStore('user_listings');
-        const usersStore = tx.objectStore('users');
-        const listingsStore = tx.objectStore('listings');
-        const vcJobsStore = tx.objectStore('vc_issue_jobs');
-        const userListingsIndex = userListingsStore.index('listing_id');
+        await this.initPromise;
         
         return new Promise((resolve, reject) => {
-            const request = userListingsIndex.openCursor();
-            const results = [];
+            const transaction = this.db.transaction(['listings', 'users', 'user_listings'], 'readonly');
+            const listingStore = transaction.objectStore('listings');
+            const userStore = transaction.objectStore('users');
+            const userListingsStore = transaction.objectStore('user_listings');
             
-            request.onsuccess = async (event) => {
-                const cursor = event.target.result;
-                console.log('Cursor result:', cursor);
-                
-                if (cursor) {
-                    const signup = cursor.value;
-                    console.log('Processing signup:', signup);
-                    
-                    if (signup && signup.listing_id === listingId) {
-                        try {
-                            console.log('Found matching signup for listing:', listingId);
-                            
-                            // Get user information
-                            const user = await new Promise((resolve, reject) => {
-                                const userRequest = usersStore.get(signup.user_id);
-                                userRequest.onsuccess = () => resolve(userRequest.result);
-                                userRequest.onerror = () => reject(userRequest.error);
-                            });
-                            
-                            console.log('Found user:', user);
-                            
-                            // Get listing information
-                            const listing = await new Promise((resolve, reject) => {
-                                const listingRequest = listingsStore.get(signup.listing_id);
-                                listingRequest.onsuccess = () => resolve(listingRequest.result);
-                                listingRequest.onerror = () => reject(listingRequest.error);
-                            });
-                            
-                            console.log('Found listing:', listing);
-                            
-                            // Get VC jobs for this signup using a simpler approach
-                            const vcJobs = await new Promise((resolve, reject) => {
-                                const vcJobsRequest = vcJobsStore.getAll();
-                                vcJobsRequest.onsuccess = () => {
-                                    const allVcJobs = vcJobsRequest.result || [];
-                                    const matchingJobs = allVcJobs.filter(job => 
-                                        job && job.user_id === signup.user_id && job.listing_id === signup.listing_id
-                                    );
-                                    resolve(matchingJobs);
-                                };
-                                vcJobsRequest.onerror = () => reject(vcJobsRequest.error);
-                            });
-                            
-                            console.log('Found VC jobs:', vcJobs);
-                            
-                            // Calculate VC status like SQL backend
-                            const vcCount = vcJobs.length;
-                            const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
-                            const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
-                            const vcStatus = vcPendingCount > 0 ? 'pending' : vcFailedCount > 0 ? 'failed' : 'success';
-                            
-                            const result = {
-                                user_id: signup.user_id,
-                                listing_id: signup.listing_id,
-                                created_ts: signup.created_ts,
-                                status: signup.status,
-                                user_name: user?.name || '',
-                                user_oc_id: user?.oc_id || '',
-                                trigger_mode: listing?.trigger_mode || 'manual',
-                                vc_count: vcCount,
-                                vc_pending_count: vcPendingCount,
-                                vc_failed_count: vcFailedCount,
-                                vc_issue_status: vcCount > 0 ? vcStatus : null
-                            };
-                            
-                            console.log('Adding result:', result);
-                            results.push(result);
-                            
-                            cursor.continue();
-                        } catch (error) {
-                            console.error('Error processing signup:', error);
-                            cursor.continue();
-                        }
-                    } else {
-                        console.log('Signup does not match listing ID or is invalid');
-                        cursor.continue();
-                    }
-                } else {
-                    console.log('No more signups, total found:', results.length);
-                    // Sort by status (pending first, then approved, then completed, etc.)
-                    results.sort((a, b) => {
-                        const statusOrder = { 'pending': 0, 'approved': 1, 'completed': 2, 'declined': 3 };
-                        return (statusOrder[a.status] || 999) - (statusOrder[b.status] || 999);
-                    });
-                    resolve(results);
+            const listingRequest = listingStore.get(listingId);
+            
+            listingRequest.onsuccess = async () => {
+                const listing = listingRequest.result;
+                if (!listing) {
+                    resolve([]);
+                    return;
                 }
+                
+                const signups = [];
+                
+                // Get signups from user_listings table
+                const userListingsIndex = userListingsStore.index('listing_id');
+                const signupsRequest = userListingsIndex.openCursor();
+                
+                signupsRequest.onsuccess = async (event) => {
+                    const cursor = event.target.result;
+                    if (cursor) {
+                        const userListing = cursor.value;
+                        if (userListing.listing_id === listingId) {
+                            try {
+                                // Get user info
+                                const user = await new Promise((resolve, reject) => {
+                                    const userRequest = userStore.get(userListing.user_id);
+                                    userRequest.onsuccess = () => resolve(userRequest.result);
+                                    userRequest.onerror = () => reject(userRequest.error);
+                                });
+                                
+                                if (user) {
+                                    signups.push({
+                                        id: userListing.id,
+                                        user_id: userListing.user_id,
+                                        listing_id: userListing.listing_id,
+                                        status: userListing.status,
+                                        created_at: userListing.created_at,
+                                        updated_at: userListing.updated_at,
+                                        user: {
+                                            id: user.id,
+                                            name: user.name,
+                                            email: user.email,
+                                            oc_id: user.oc_id
+                                        },
+                                        vc_job_status: userListing.vc_job_status || null
+                                    });
+                                }
+                            } catch (error) {
+                                console.warn(`Failed to fetch user ${userListing.user_id}:`, error);
+                            }
+                        }
+                        cursor.continue();
+                    } else {
+                        resolve(signups);
+                    }
+                };
+                
+                signupsRequest.onerror = (error) => {
+                    console.error('Error fetching signups:', error);
+                    reject(error);
+                };
             };
-
-            request.onerror = (event) => {
-                console.error('Error fetching listing signups:', event.target.error);
-                reject(event.target.error);
+            
+            listingRequest.onerror = (error) => {
+                console.error('Error fetching listing:', error);
+                reject(error);
             };
         });
     }
