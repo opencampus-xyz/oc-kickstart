@@ -43,12 +43,7 @@ export default function Home() {
     try {
       const response = await fetchWithAuth(`/auth-user/listings?${params}`);
       const data = await response.json();
-      setListings(prevListings => {
-        if (JSON.stringify(prevListings) === JSON.stringify(data.listings)) {
-          return prevListings;
-        }
-        return data.listings;
-      });
+      setListings(data.listings);
       setTotal(data.total);
     } catch (error) {
       console.error(error);
@@ -62,12 +57,7 @@ export default function Home() {
     try {
       const response = await publicFetch(`/listings?${params}`);
       const data = await response.json();
-      setListings(prevListings => {
-        if (JSON.stringify(prevListings) === JSON.stringify(data.listings)) {
-          return prevListings;
-        }
-        return data.listings;
-      });
+      setListings(data.listings);
       setTotal(data.total);
     } catch (error) {
       console.error(error);
@@ -118,18 +108,16 @@ export default function Home() {
     } else {
       const tagIds = tagsParam ? tagsParam.split(',') : [];
       const activeTagIds = tagIds.filter(id => tagsKeyById[id]);
-      if (JSON.stringify(activeTagIds) !== JSON.stringify(searchTags)) {
-        setSearchTags(activeTagIds);
-        if (activeTagIds.length !== tagIds.length) {
-          const params = new URLSearchParams(window.location.search);
-          if (activeTagIds.length >= 1) {
-            params.set('tags', activeTagIds.join(','));
-          } else {
-            params.delete('tags');
-          }
-          if (params.toString()) {
-            router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
-          }
+      setSearchTags(activeTagIds);
+      if (activeTagIds.length !== tagIds.length) {
+        const params = new URLSearchParams(window.location.search);
+        if (activeTagIds.length >= 1) {
+          params.set('tags', activeTagIds.join(','));
+        } else {
+          params.delete('tags');
+        }
+        if (params.toString()) {
+          router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
         }
       }
     }

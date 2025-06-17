@@ -85,7 +85,7 @@ export const createVCIssueJobs = async (userId, listingId) => {
         tag.vc_properties,
         tag.description,
         `${listingId}_${tag.id}`,
-        `${listingVcProperties.title}_${tag.vc_properties.title}`
+        `${listingVcProperties.title} - ${tag.vc_properties.title}`
       )
     ),
   ];
