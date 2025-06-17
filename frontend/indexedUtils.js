@@ -109,6 +109,10 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 );
                 break;
 
+            case '/admin/listing/signups/issue-oca':
+                response = await dbService.createVCIssueJob(body.userId, body.listingId);
+                break;
+
             case '/admin/tag':
                 response = await dbService.createTag(body);
                 break;
@@ -156,6 +160,12 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 break;
             }
 
+            case (endpoint.match(/^\/admin\/listing\/signups\/([^\/]+)$/) || {}).input: {
+                const listingId = endpoint.split('/').pop();
+                response = await dbService.getListingSignups(listingId);
+                break;
+            }
+
             case (endpoint.match(/^\/admin\/listing\/([^\/]+)$/) || {}).input: {
                 const id = endpoint.split('/').pop();
                 console.log('Fetching listing by ID:', id);
@@ -176,15 +186,6 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 response = await dbService.archiveTag(tagId);
                 break;
 
-            case '/admin/listing/signups/:listingId':
-                const listingId = url.split('/').pop();
-                response = await dbService.getListingSignups(listingId);
-                break;
-
-            case '/admin/listing/signups/issue-oca':
-                response = await dbService.createVCIssueJob(body.userId, body.listingId);
-                break;
-            
             case '/master-admin/admin-configs':
                 if (options.method === 'POST') {
                     response = await dbService.adminConfig(body.adminOCIDs ? body.adminOCIDs.split(',') : []);

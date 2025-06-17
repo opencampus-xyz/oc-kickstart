@@ -1,5 +1,3 @@
-"use client";
-
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
