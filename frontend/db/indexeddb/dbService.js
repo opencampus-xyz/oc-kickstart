@@ -18,13 +18,125 @@ export class DBService {
         this.initPromise = this.init();
     }
 
+    get IndexedDBHelper() {
+        return {
+            createTransaction: (stores, mode = 'readonly') => {
+                return this.db.transaction(stores, mode);
+            },
+
+            getStore: (transaction, storeName) => {
+                return transaction.objectStore(storeName);
+            },
+
+            getIndex: (store, indexName) => {
+                return store.index(indexName);
+            },
+
+            get: (store, key) => {
+                return new Promise((resolve, reject) => {
+                    const request = store.get(key);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            getByIndex: (index, key) => {
+                return new Promise((resolve, reject) => {
+                    const request = index.get(key);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            put: (store, data) => {
+                return new Promise((resolve, reject) => {
+                    const request = store.put(data);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            add: (store, data) => {
+                return new Promise((resolve, reject) => {
+                    const request = store.add(data);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            delete: (store, key) => {
+                return new Promise((resolve, reject) => {
+                    const request = store.delete(key);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            getAll: (store, query = null, count = null) => {
+                return new Promise((resolve, reject) => {
+                    const request = query ? store.getAll(query, count) : store.getAll();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            getAllByIndex: (index, key, count = null) => {
+                return new Promise((resolve, reject) => {
+                    const request = count ? index.getAll(key, count) : index.getAll(key);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            count: (store, query = null) => {
+                return new Promise((resolve, reject) => {
+                    const request = query ? store.count(query) : store.count();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            countByIndex: (index, key) => {
+                return new Promise((resolve, reject) => {
+                    const request = index.count(key);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            openCursor: (store, query = null, direction = 'next') => {
+                return new Promise((resolve, reject) => {
+                    const request = query ? store.openCursor(query, direction) : store.openCursor();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            openCursorByIndex: (index, query = null, direction = 'next') => {
+                return new Promise((resolve, reject) => {
+                    const request = query ? index.openCursor(query, direction) : index.openCursor();
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => reject(request.error);
+                });
+            },
+
+            handleRequest: (request, errorMessage = 'Database operation failed') => {
+                return new Promise((resolve, reject) => {
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = (event) => {
+                        console.error(errorMessage, event.target.error);
+                        reject(event.target.error);
+                    };
+                });
+            }
+        };
+    }
+
     async init() {
         this.db = await initDatabase();
         
-        // Start the VC issuer service after database is initialized
         try {
             const vcIssuer = VCIssuerService.getInstance();
-            console.log('Starting VC issuer service...');
             vcIssuer.startService(Math.max(30000, (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000));
         } catch (error) {
             console.error('Failed to start VC issuer service:', error);
@@ -33,7 +145,6 @@ export class DBService {
         return this.db;
     }
 
-    // Helper method to ensure database is initialized
     async ensureInitialized() {
         await this.initPromise;
         if (!this.db) {
@@ -42,9 +153,7 @@ export class DBService {
     }
 
     // ===== backend/src/index.js endpoints =====
-    // Corresponds to backend/src/index.js POST /signup and backend/src/signup.js signup()
     async createUser(userData) {
-        console.log('Creating user with data:', userData);
         if (!userData.email) {
             throw new Error("Email is required for user creation");
         }
@@ -52,23 +161,16 @@ export class DBService {
             throw new Error("OC ID is required for user creation");
         }
 
-        const tx = this.db.transaction(['users'], 'readwrite');
-        const store = tx.objectStore('users');
-        const userIndex = store.index('oc_id');
+        const tx = this.IndexedDBHelper.createTransaction(['users'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'users');
+        const userIndex = this.IndexedDBHelper.getIndex(store, 'oc_id');
 
-        // Check if user already exists - properly await the request
-        const existingUser = await new Promise((resolve, reject) => {
-            const request = userIndex.get(userData.oc_id);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const existingUser = await this.IndexedDBHelper.getByIndex(userIndex, userData.oc_id);
 
         if (existingUser) {
-            console.log('User already exists:', existingUser);
             return { message: "User created successfully" };
         }
 
-        // Create new user document
         const userDoc = createUserDocument({
             name: userData.name || '',
             email: userData.email.toLowerCase(),
@@ -77,35 +179,25 @@ export class DBService {
             signups: []
         });
 
-        console.log('Created user document:', userDoc);
-        await store.add(userDoc);
+        await this.IndexedDBHelper.add(store, userDoc);
         return { message: "User created successfully" };
     }
     
-    // Corresponds to backend/src/index.js GET /user and backend/src/auth-user/index.js registeredUserMiddleware()
     async getUserByOCId(ocId) {
         await this.ensureInitialized();
         
-        const tx = this.db.transaction(['users', 'admin_configs'], 'readonly');
-        const userStore = tx.objectStore('users');
-        const adminStore = tx.objectStore('admin_configs');
-        const userIndex = userStore.index('oc_id');
+        const tx = this.IndexedDBHelper.createTransaction(['users', 'admin_configs'], 'readonly');
+        const userStore = this.IndexedDBHelper.getStore(tx, 'users');
+        const adminStore = this.IndexedDBHelper.getStore(tx, 'admin_configs');
+        const userIndex = this.IndexedDBHelper.getIndex(userStore, 'oc_id');
         
-        const user = await new Promise((resolve, reject) => {
-            const request = userIndex.get(ocId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const user = await this.IndexedDBHelper.getByIndex(userIndex, ocId);
 
         if (!user) {
             return null;
         }
 
-        const adminConfig = await new Promise((resolve, reject) => {
-            const request = adminStore.get('admin_config');
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const adminConfig = await this.IndexedDBHelper.get(adminStore, 'admin_config');
 
         const isAdmin = adminConfig?.admin_ocids?.includes(ocId) || false;
         const isMasterAdmin = adminConfig?.isMasterAdmin === true && adminConfig?.admin_ocids?.includes(ocId);
@@ -128,35 +220,32 @@ export class DBService {
     }
 
     // ===== backend/src/auth-user/index.js endpoints =====
-    // Corresponds to backend/src/auth-user/index.js POST /update-username
     async updateUsername(ocId, username) {
-        const tx = this.db.transaction(['users'], 'readwrite');
-        const store = tx.objectStore('users');
-        const index = store.index('oc_id');
-        const user = await index.get(ocId);
+        const tx = this.IndexedDBHelper.createTransaction(['users'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'users');
+        const index = this.IndexedDBHelper.getIndex(store, 'oc_id');
+        const user = await this.IndexedDBHelper.getByIndex(index, ocId);
         if (!user) {
             throw new Error("User not found");
         }
         user.name = username;
         user.last_modified_ts = new Date().toISOString();
-        await store.put(user);
+        await this.IndexedDBHelper.put(store, user);
         return { message: "Username updated successfully" };
     }
 
-    // Corresponds to backend/src/auth-user/index.js GET /sign-ups
     async getUserSignups({ page = 0, pageSize = 10, searchText, userId }) {
-        console.log('[DBService] getUserSignups called with:', { page, pageSize, searchText, userId });
         
         if (!userId) {
             console.warn('[DBService] No userId provided for getUserSignups');
             return { data: [], total: 0 };
         }
 
-        const tx = this.db.transaction(['user_listings', 'listings', 'vc_issue_jobs'], 'readonly');
-        const userListingsStore = tx.objectStore('user_listings');
-        const listingsStore = tx.objectStore('listings');
-        const vcJobsStore = tx.objectStore('vc_issue_jobs');
-        const userListingsIndex = userListingsStore.index('user_id');
+        const tx = this.IndexedDBHelper.createTransaction(['user_listings', 'listings', 'vc_issue_jobs'], 'readonly');
+        const userListingsStore = this.IndexedDBHelper.getStore(tx, 'user_listings');
+        const listingsStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        const vcJobsStore = this.IndexedDBHelper.getStore(tx, 'vc_issue_jobs');
+        const userListingsIndex = this.IndexedDBHelper.getIndex(userListingsStore, 'user_id');
         
         return new Promise((resolve, reject) => {
             const request = userListingsIndex.openCursor();
@@ -168,13 +257,9 @@ export class DBService {
                 const cursor = event.target.result;
                 if (cursor) {
                     const signup = cursor.value;
-                    console.log('[DBService] Found signup:', signup);
                     totalSignups++;
                     
                     if (signup.user_id === userId) {
-                        console.log('[DBService] Signup matches userId:', userId);
-                        
-                        // Get listing synchronously within the transaction
                         const listingRequest = listingsStore.get(signup.listing_id);
                         listingRequest.onsuccess = () => {
                             const listing = listingRequest.result;
@@ -184,9 +269,6 @@ export class DBService {
                                 return;
                             }
 
-                            console.log('[DBService] Found listing:', listing.name);
-
-                            // Get VC jobs for this signup synchronously
                             const vcJobs = [];
                             const vcJobsRequest = vcJobsStore.openCursor();
                             vcJobsRequest.onsuccess = (vcEvent) => {
@@ -198,7 +280,6 @@ export class DBService {
                                     }
                                     vcCursor.continue();
                                 } else {
-                                    // VC jobs cursor finished, process the results
                                     const vcCount = vcJobs.length;
                                     let vcStatus = null;
                                     
@@ -227,7 +308,6 @@ export class DBService {
                                             created_ts: signup.created_ts,
                                             last_modified_ts: signup.last_modified_ts
                                         };
-                                        console.log('[DBService] Adding result item:', resultItem);
                                         results.push(resultItem);
                                     }
                                     count++;
@@ -244,11 +324,9 @@ export class DBService {
                             cursor.continue();
                         };
                     } else {
-                        console.log('[DBService] Signup user_id does not match:', signup.user_id, '!==', userId);
                         cursor.continue();
                     }
                 } else {
-                    console.log('[DBService] Cursor finished. Total signups found:', totalSignups, 'Matching userId:', count, 'Results:', results);
                     resolve({ data: results, total: count });
                 }
             };
@@ -260,44 +338,22 @@ export class DBService {
         });
     }
 
-    // Corresponds to backend/src/auth-user/index.js POST /signup-for-listing
     async signupForListing(userId, listingId) {
-        console.log('Attempting signup with:', { userId, listingId });
-        const tx = this.db.transaction(['users', 'listings', 'user_listings'], 'readwrite');
-        const userStore = tx.objectStore('users');
-        const listingStore = tx.objectStore('listings');
-        const userListingsStore = tx.objectStore('user_listings');
+        const tx = this.IndexedDBHelper.createTransaction(['users', 'listings', 'user_listings'], 'readwrite');
+        const userStore = this.IndexedDBHelper.getStore(tx, 'users');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        const userListingsStore = this.IndexedDBHelper.getStore(tx, 'user_listings');
 
-        // Debug: Check user
-        const user = await new Promise((resolve, reject) => {
-            const request = userStore.get(userId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-        console.log('Found user:', user);
+        const user = await this.IndexedDBHelper.get(userStore, userId);
 
-        // Debug: Check listing
-        const listing = await new Promise((resolve, reject) => {
-            const request = listingStore.get(listingId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-        console.log('Found listing:', listing);
+        const listing = await this.IndexedDBHelper.get(listingStore, listingId);
 
-        // Debug: Check existing signup
-        const existingSignup = await new Promise((resolve, reject) => {
-            const request = userListingsStore.get([userId, listingId]);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-        console.log('Existing signup:', existingSignup);
+        const existingSignup = await this.IndexedDBHelper.get(userListingsStore, [userId, listingId]);
 
         if (existingSignup !== undefined) {
-            console.log('Found existing signup, throwing error');
             throw new Error("You've already signed up for this listing");
         }
 
-        // Check signup limit
         const signupCount = listing.signups.filter(([_, status]) => 
             status === UserListingStatus.APPROVED || status === UserListingStatus.PENDING
         ).length;
@@ -306,7 +362,6 @@ export class DBService {
             throw new Error("Listing signups limit reached");
         }
 
-        // Create new signup
         const signup = {
             user_id: userId,
             listing_id: listingId,
@@ -315,64 +370,32 @@ export class DBService {
             last_modified_ts: new Date().toISOString()
         };
 
-        // Add signup
-        await new Promise((resolve, reject) => {
-            const request = userListingsStore.add(signup);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
-
-        // Update user's signups
+        await this.IndexedDBHelper.add(userListingsStore, signup);
+        
         user.signups.push({ 
             listing_id: listingId, 
             status: UserListingStatus.PENDING, 
             created_ts: signup.created_ts 
         });
-        await new Promise((resolve, reject) => {
-            const request = userStore.put(user);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        await this.IndexedDBHelper.put(userStore, user);
 
-        // Update listing's signups
         listing.signups.push([userId, UserListingStatus.PENDING]);
-        await new Promise((resolve, reject) => {
-            const request = listingStore.put(listing);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        await this.IndexedDBHelper.put(listingStore, listing);
 
         return signup;
     }
 
     // ===== backend/src/admin/index.js endpoints =====
-    // Corresponds to backend/src/admin/index.js GET /listing/:id
     async getListingById(id) {
-        console.log('Getting listing by ID:', id);
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(['listings'], 'readonly');
-            const listingStore = tx.objectStore('listings');
-            
-            console.log('Opening request for listing:', id);
-            const request = listingStore.get(id);
-            
-            request.onsuccess = () => {
-                console.log('Listing request success, result:', request.result);
-                resolve(request.result);
-            };
-            
-            request.onerror = (event) => {
-                console.error('Listing request error:', event.target.error);
-                reject(event.target.error);
-            };
-        });
+        const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readonly');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        
+        return await this.IndexedDBHelper.get(listingStore, id);
     }
 
-    // Corresponds to backend/src/admin/index.js POST /listing/create
     async createListing(listingData) {
-        console.log('Creating listing with data:', listingData);
-        const tx = this.db.transaction(['listings'], 'readwrite');
-        const listingStore = tx.objectStore('listings');
+        const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readwrite');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
         
         try {
             const listingDoc = createListingDocument({
@@ -385,35 +408,22 @@ export class DBService {
                     expireInDays: listingData.expireInDays ? parseInt(listingData.expireInDays) : null
                 }
             });
-            console.log('Created listing document:', listingDoc);
             
-            const addResult = await new Promise((resolve, reject) => {
-                const request = listingStore.add(listingDoc);
-                request.onsuccess = () => {
-                    console.log('Successfully added listing to store');
-                    resolve(listingDoc);
-                };
-                request.onerror = (event) => {
-                    console.error('Error adding listing to store:', event.target.error);
-                    reject(event.target.error);
-                };
-            });
-            
-            console.log('Add result:', addResult);
+            await this.IndexedDBHelper.add(listingStore, listingDoc);
             
             return {
-                id: addResult.id,
-                name: addResult.name,
-                description: addResult.description,
-                trigger_mode: addResult.trigger_mode,
-                sign_ups_limit: addResult.sign_ups_limit,
-                vc_properties: addResult.vc_properties,
-                tags: addResult.tags,
-                status: addResult.status,
-                created_ts: addResult.created_ts,
-                last_modified_ts: addResult.last_modified_ts,
-                published_ts: addResult.published_ts,
-                deleted_ts: addResult.deleted_ts
+                id: listingDoc.id,
+                name: listingDoc.name,
+                description: listingDoc.description,
+                trigger_mode: listingDoc.trigger_mode,
+                sign_ups_limit: listingDoc.sign_ups_limit,
+                vc_properties: listingDoc.vc_properties,
+                tags: listingDoc.tags,
+                status: listingDoc.status,
+                created_ts: listingDoc.created_ts,
+                last_modified_ts: listingDoc.last_modified_ts,
+                published_ts: listingDoc.published_ts,
+                deleted_ts: listingDoc.deleted_ts
             };
         } catch (error) {
             console.error('Error in createListing:', error);
@@ -421,17 +431,16 @@ export class DBService {
         }
     }
 
-    // Corresponds to backend/src/admin/index.js POST /listing/update
     async updateListing(id, listingData) {
-        const tx = this.db.transaction(['listings'], 'readwrite');
-        const listingStore = tx.objectStore('listings');
+        const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readwrite');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
         
         try {
             if (!id) {
                 throw new Error("No listing ID provided");
             }
 
-            const listing = await listingStore.get(id);
+            const listing = await this.IndexedDBHelper.get(listingStore, id);
             if (!listing) {
                 throw new Error("Listing not found");
             }
@@ -448,31 +457,19 @@ export class DBService {
             listing.tags = listingData.tags || [];
             listing.last_modified_ts = new Date().toISOString();
             
-            await listingStore.put(listing);
+            await this.IndexedDBHelper.put(listingStore, listing);
             return { id };
         } catch (error) {
             throw error;
         }
     }
 
-    // Corresponds to backend/src/admin/index.js POST /listing/publish
     async updateListingStatus(listingId, newStatus) {
-        console.log('Updating listing status:', { listingId, newStatus });
-        const tx = this.db.transaction(['listings'], 'readwrite');
-        const listingStore = tx.objectStore('listings');
+        const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readwrite');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
         
         try {
-            const currentListing = await new Promise((resolve, reject) => {
-                const request = listingStore.get(listingId);
-                request.onsuccess = () => {
-                    console.log('Got current listing:', request.result);
-                    resolve(request.result);
-                };
-                request.onerror = (event) => {
-                    console.error('Error getting listing:', event.target.error);
-                    reject(event.target.error);
-                };
-            });
+            const currentListing = await this.IndexedDBHelper.get(listingStore, listingId);
             
             if (!currentListing) {
                 throw new Error(`Listing not found: ${listingId}`);
@@ -493,17 +490,7 @@ export class DBService {
                 published_ts: newStatus === 'published' ? new Date().toISOString() : currentListing.published_ts
             };
             
-            await new Promise((resolve, reject) => {
-                const request = listingStore.put(updatedListing);
-                request.onsuccess = () => {
-                    console.log('Successfully updated listing status');
-                    resolve(updatedListing);
-                };
-                request.onerror = (event) => {
-                    console.error('Error updating listing status:', event.target.error);
-                    reject(event.target.error);
-                };
-            });
+            await this.IndexedDBHelper.put(listingStore, updatedListing);
             
             return {
                 id: updatedListing.id,
@@ -525,18 +512,13 @@ export class DBService {
         }
     }
 
-    // Corresponds to backend/src/admin/index.js POST /listing/signups/update-status
     async updateSignupStatus(userId, listingId, status) {
-        const tx = this.db.transaction(['users', 'listings', 'user_listings'], 'readwrite');
-        const userStore = tx.objectStore('users');
-        const listingStore = tx.objectStore('listings');
-        const userListingsStore = tx.objectStore('user_listings');
+        const tx = this.IndexedDBHelper.createTransaction(['users', 'listings', 'user_listings'], 'readwrite');
+        const userStore = this.IndexedDBHelper.getStore(tx, 'users');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        const userListingsStore = this.IndexedDBHelper.getStore(tx, 'user_listings');
 
-        const signup = await new Promise((resolve, reject) => {
-            const request = userListingsStore.get([userId, listingId]);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const signup = await this.IndexedDBHelper.get(userListingsStore, [userId, listingId]);
         
         if (!signup) {
             throw new Error("Signup not found");
@@ -548,17 +530,9 @@ export class DBService {
             last_modified_ts: new Date().toISOString()
         };
         
-        await new Promise((resolve, reject) => {
-            const request = userListingsStore.put(updatedSignup);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        await this.IndexedDBHelper.put(userListingsStore, updatedSignup);
 
-        const user = await new Promise((resolve, reject) => {
-            const request = userStore.get(userId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const user = await this.IndexedDBHelper.get(userStore, userId);
         
         if (user) {
             const userSignup = user.signups.find(s => s.listing_id === listingId);
@@ -571,19 +545,11 @@ export class DBService {
                     signups: [...user.signups]
                 };
                 
-                await new Promise((resolve, reject) => {
-                    const request = userStore.put(updatedUser);
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
+                await this.IndexedDBHelper.put(userStore, updatedUser);
             }
         }
 
-        const listing = await new Promise((resolve, reject) => {
-            const request = listingStore.get(listingId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const listing = await this.IndexedDBHelper.get(listingStore, listingId);
         
         if (listing) {
             const listingSignupIndex = listing.signups.findIndex(([uid, _]) => uid === userId);
@@ -594,11 +560,7 @@ export class DBService {
                 };
                 updatedListing.signups[listingSignupIndex][1] = status;
                 
-                await new Promise((resolve, reject) => {
-                    const request = listingStore.put(updatedListing);
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
+                await this.IndexedDBHelper.put(listingStore, updatedListing);
             }
 
             if (listing.trigger_mode === ListingTriggerMode.AUTO && status === UserListingStatus.COMPLETED) {
@@ -609,13 +571,12 @@ export class DBService {
         return updatedSignup;
     }
 
-    // Corresponds to backend/src/admin/index.js GET /tags
     async getTags() {
         await this.ensureInitialized();
 
-        const tx = this.db.transaction(['tags'], 'readonly');
-        const store = tx.objectStore('tags');
-        const index = store.index('created_ts');
+        const tx = this.IndexedDBHelper.createTransaction(['tags'], 'readonly');
+        const store = this.IndexedDBHelper.getStore(tx, 'tags');
+        const index = this.IndexedDBHelper.getIndex(store, 'created_ts');
         
         return new Promise((resolve, reject) => {
             const request = index.openCursor(null, 'prev');
@@ -642,30 +603,28 @@ export class DBService {
         });
     }
 
-    // Corresponds to backend/src/admin/index.js POST /tag
     async createTag(tagData) {
-        const tx = this.db.transaction(['tags'], 'readwrite');
-        const store = tx.objectStore('tags');
+        const tx = this.IndexedDBHelper.createTransaction(['tags'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'tags');
         
-        const index = store.index('name');
-        const existingTag = await index.get(tagData.name);
+        const index = this.IndexedDBHelper.getIndex(store, 'name');
+        const existingTag = await this.IndexedDBHelper.getByIndex(index, tagData.name);
         if (existingTag) {
             throw new Error("Tag already exists");
         }
 
         const tagDoc = createTagDocument(tagData);
-        await store.add(tagDoc);
+        await this.IndexedDBHelper.add(store, tagDoc);
         return tagDoc;
     }
 
-    // Corresponds to backend/src/admin/index.js POST /add-tag
     async addTagToListings(tagId, listingIds) {
-        const tx = this.db.transaction(['listing_tags'], 'readwrite');
-        const store = tx.objectStore('listing_tags');
+        const tx = this.IndexedDBHelper.createTransaction(['listing_tags'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'listing_tags');
         
         try {
             for (const listingId of listingIds) {
-                await store.add({
+                await this.IndexedDBHelper.add(store, {
                     id: crypto.randomUUID(),
                     listing_id: listingId,
                     tag_id: tagId,
@@ -679,20 +638,17 @@ export class DBService {
         }
     }
 
-    // ===== backend/src/public/index.js endpoints =====
-    // Corresponds to backend/src/public/index.js GET /listings
     async getListings({ page = 0, pageSize = 10, searchText, searchTags, searchStatus, includeUserSignups = false, userId = null, showAllStatuses = false }) {
-        // Ensure database is initialized
         await this.ensureInitialized();
         
-        const tx = this.db.transaction(['listings', 'tags', 'user_listings'], 'readonly');
-        const listingStore = tx.objectStore('listings');
-        const tagStore = tx.objectStore('tags');
-        const userListingsStore = tx.objectStore('user_listings');
-        const index = listingStore.index('name');
+        const tx = this.IndexedDBHelper.createTransaction(['listings', 'tags', 'user_listings'], 'readonly');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        const tagStore = this.IndexedDBHelper.getStore(tx, 'tags');
+        const userListingsStore = this.IndexedDBHelper.getStore(tx, 'user_listings');
+        const index = this.IndexedDBHelper.getIndex(listingStore, 'name');
         
         return new Promise((resolve, reject) => {
-            const request = index.openCursor();
+            const request = index.openCursor(null, 'prev');
             const results = [];
             let count = 0;
             let allListings = [];
@@ -703,7 +659,6 @@ export class DBService {
                     const listing = cursor.value;
                     allListings.push(listing);
                     
-                    // Check if listing should be included based on status and filters
                     const statusMatches = showAllStatuses || listing.status === ListingStatus.ACTIVE;
                     if (statusMatches && this.matchesListingFilters(listing, { searchText, searchTags, searchStatus })) {
                         if (count >= page * pageSize && count < (page + 1) * pageSize) {
@@ -712,8 +667,8 @@ export class DBService {
                             }
                             
                             const signupsCount = await new Promise((resolve) => {
-                                const userListingsIndex = userListingsStore.index('listing_id');
-                                const signupsRequest = userListingsIndex.openCursor();
+                                const userListingsIndex = this.IndexedDBHelper.getIndex(userListingsStore, 'listing_id');
+                                const signupsRequest = userListingsIndex.openCursor(null, 'prev');
                                 let count = 0;
                                 
                                 signupsRequest.onsuccess = (event) => {
@@ -755,11 +710,7 @@ export class DBService {
                             if (listing.tags && listing.tags.length > 0) {
                                 for (const tagId of listing.tags) {
                                     try {
-                                        const tag = await new Promise((resolve, reject) => {
-                                            const tagRequest = tagStore.get(tagId);
-                                            tagRequest.onsuccess = () => resolve(tagRequest.result);
-                                            tagRequest.onerror = () => reject(tagRequest.error);
-                                        });
+                                        const tag = await this.IndexedDBHelper.get(tagStore, tagId);
                                         if (tag && !tag.archived_ts) {
                                             tagNames.push(tag.name);
                                         }
@@ -790,18 +741,17 @@ export class DBService {
         });
     }
 
-    // Corresponds to backend/src/public/index.js GET /achievements/:ocid
     async getAchievementsByOCId(ocId, { page = 0, pageSize = 10 }) {
         const user = await this.getUserByOCId(ocId);
         if (!user?.user) {
             return { data: [], total: 0 };
         }
 
-        const tx = this.db.transaction(['user_listings', 'listings', 'vc_issue_jobs'], 'readonly');
-        const userListingsStore = tx.objectStore('user_listings');
-        const listingsStore = tx.objectStore('listings');
-        const vcJobsStore = tx.objectStore('vc_issue_jobs');
-        const index = userListingsStore.index('user_id');
+        const tx = this.IndexedDBHelper.createTransaction(['user_listings', 'listings', 'vc_issue_jobs'], 'readonly');
+        const userListingsStore = this.IndexedDBHelper.getStore(tx, 'user_listings');
+        const listingsStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        const vcJobsStore = this.IndexedDBHelper.getStore(tx, 'vc_issue_jobs');
+        const index = this.IndexedDBHelper.getIndex(userListingsStore, 'user_id');
 
         return new Promise((resolve, reject) => {
             const results = [];
@@ -833,7 +783,7 @@ export class DBService {
                 };
 
                 const processUserListings = () => {
-                    const request = index.openCursor();
+                    const request = index.openCursor(null, 'prev');
                     request.onsuccess = (event) => {
                         const cursor = event.target.result;
                         if (cursor) {
@@ -908,24 +858,15 @@ export class DBService {
         });
     }
 
-    // Corresponds to backend/src/create-vc-issue-jobs.js
     async createVCIssueJob(userId, listingId) {
-        const tx = this.db.transaction(['vc_issue_jobs', 'users', 'listings'], 'readwrite');
-        const vcJobsStore = tx.objectStore('vc_issue_jobs');
-        const usersStore = tx.objectStore('users');
-        const listingsStore = tx.objectStore('listings');
+        const tx = this.IndexedDBHelper.createTransaction(['vc_issue_jobs', 'users', 'listings'], 'readwrite');
+        const vcJobsStore = this.IndexedDBHelper.getStore(tx, 'vc_issue_jobs');
+        const usersStore = this.IndexedDBHelper.getStore(tx, 'users');
+        const listingsStore = this.IndexedDBHelper.getStore(tx, 'listings');
         
-        const user = await new Promise((resolve, reject) => {
-            const request = usersStore.get(userId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const user = await this.IndexedDBHelper.get(usersStore, userId);
         
-        const listing = await new Promise((resolve, reject) => {
-            const request = listingsStore.get(listingId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const listing = await this.IndexedDBHelper.get(listingsStore, listingId);
         
         if (!user || !listing) {
             throw new Error("User or listing not found");
@@ -967,11 +908,7 @@ export class DBService {
             last_modified_ts: now.toISOString()
         };
         
-        await new Promise((resolve, reject) => {
-            const request = vcJobsStore.add(job);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        await this.IndexedDBHelper.add(vcJobsStore, job);
         
         return job;
     }
@@ -1013,23 +950,19 @@ export class DBService {
 
     // ===== Admin Management =====
     async adminConfig(adminOCIDs = null) {
-        const tx = this.db.transaction(['admin_configs'], adminOCIDs !== null ? 'readwrite' : 'readonly');
-        const store = tx.objectStore('admin_configs');
+        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], adminOCIDs !== null ? 'readwrite' : 'readonly');
+        const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
         
-        const allConfigs = await store.getAll();
+        const allConfigs = await this.IndexedDBHelper.getAll(store, null, null);
         
-        const adminConfig = await new Promise((resolve, reject) => {
-            const request = store.get('admin_config');
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
         if (adminOCIDs !== null) {
             const config = createAdminConfigsDocument({
                 admin_ocids: adminOCIDs,
                 isMasterAdmin: false
             });
-            await store.put(config);
+            await this.IndexedDBHelper.put(store, config);
             return { message: "Admin configs updated successfully" };
         } else {
             return { admin_ocids: adminConfig?.admin_ocids || [] };
@@ -1037,15 +970,11 @@ export class DBService {
     }
 
     async setMasterAdmin(ocId) {
-        const tx = this.db.transaction(['admin_configs'], 'readwrite');
-        const store = tx.objectStore('admin_configs');
-        const index = store.index('isMasterAdmin');
+        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
+        const index = this.IndexedDBHelper.getIndex(store, 'isMasterAdmin');
 
-        const existingMasterAdmin = await new Promise((resolve, reject) => {
-            const request = index.get("true");
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const existingMasterAdmin = await this.IndexedDBHelper.getByIndex(index, "true");
         
         if (existingMasterAdmin) {
             throw new Error("A master admin already exists");
@@ -1056,220 +985,164 @@ export class DBService {
             isMasterAdmin: true
         });
 
-        await new Promise((resolve, reject) => {
-            const request = store.put(adminConfig);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        await this.IndexedDBHelper.put(store, adminConfig);
         
         return adminConfig;
     }
 
     async isMasterAdmin(ocId) {
-        const tx = this.db.transaction(['admin_configs'], 'readonly');
-        const store = tx.objectStore('admin_configs');
-        const index = store.index('isMasterAdmin');
+        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readonly');
+        const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
+        const index = this.IndexedDBHelper.getIndex(store, 'isMasterAdmin');
         
-        const adminConfig = await new Promise((resolve, reject) => {
-            const request = index.get(true);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const adminConfig = await this.IndexedDBHelper.getByIndex(index, true);
         
         return adminConfig?.admin_ocids.includes(ocId);
     }
 
     async isAdmin(ocId) {
-        const tx = this.db.transaction(['admin_configs'], 'readonly');
-        const store = tx.objectStore('admin_configs');
-        const index = store.index('admin_ocids');
+        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readonly');
+        const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
+        const index = this.IndexedDBHelper.getIndex(store, 'admin_ocids');
         
-        const adminConfig = await new Promise((resolve, reject) => {
-            const request = index.get(ocId);
-            request.onsuccess = () => resolve(request.result);
-            request.onerror = () => reject(request.error);
-        });
+        const adminConfig = await this.IndexedDBHelper.getByIndex(index, ocId);
         
         return adminConfig?.admin_ocids.includes(ocId);
     }
 
     async makeAdmin(ocId) {
-        const tx = this.db.transaction(['admin_configs'], 'readwrite');
-        const store = tx.objectStore('admin_configs');
-        const index = store.index('admin_ocids');
-        const adminConfig = await index.get(ocId);
+        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
+        const index = this.IndexedDBHelper.getIndex(store, 'admin_ocids');
+        const adminConfig = await this.IndexedDBHelper.getByIndex(index, ocId);
         adminConfig.admin_ocids.push(ocId);
-        await store.put(adminConfig);
+        await this.IndexedDBHelper.put(store, adminConfig);
     }
 
     async removeAdmin(ocId) {
-        const tx = this.db.transaction(['admin_configs'], 'readwrite');
-        const store = tx.objectStore('admin_configs');
-        const index = store.index('admin_ocids');
-        const adminConfig = await index.get(ocId);
+        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
+        const index = this.IndexedDBHelper.getIndex(store, 'admin_ocids');
+        const adminConfig = await this.IndexedDBHelper.getByIndex(index, ocId);
         adminConfig.admin_ocids = adminConfig.admin_ocids.filter(id => id !== ocId);
-        await store.put(adminConfig);
+        await this.IndexedDBHelper.put(store, adminConfig);
     }
 
     async getUsers({ page = 0, pageSize = 10, searchText }) {
-        const tx = this.db.transaction(['users'], 'readonly');
-        const store = tx.objectStore('users');
+        const tx = this.IndexedDBHelper.createTransaction(['users'], 'readonly');
+        const store = this.IndexedDBHelper.getStore(tx, 'users');
         
-        return new Promise((resolve, reject) => {
-            const request = store.getAll();
-            request.onsuccess = (event) => {
-                const users = event.target.result || [];
-                const filteredUsers = searchText 
-                    ? users.filter(user => user.search_text.toLowerCase().includes(searchText.toLowerCase()))
-                    : users;
-                
-                filteredUsers.sort((a, b) => new Date(b.created_ts) - new Date(a.created_ts));
-                
-                const start = page * pageSize;
-                const end = start + pageSize;
-                const paginatedUsers = filteredUsers.slice(start, end);
-                
-                resolve({ 
-                    users: paginatedUsers, 
-                    total: filteredUsers.length 
-                });
-            };
-
-            request.onerror = (event) => {
-                reject(event.target.error);
-            };
-        });
+        const users = await this.IndexedDBHelper.getAll(store);
+        const filteredUsers = searchText 
+            ? users.filter(user => user.search_text.toLowerCase().includes(searchText.toLowerCase()))
+            : users;
+        
+        filteredUsers.sort((a, b) => new Date(b.created_ts) - new Date(a.created_ts));
+        
+        const start = page * pageSize;
+        const end = start + pageSize;
+        const paginatedUsers = filteredUsers.slice(start, end);
+        
+        return { 
+            users: paginatedUsers, 
+            total: filteredUsers.length 
+        };
     }
 
     async getAllListings() {
-        return new Promise((resolve, reject) => {
-            const tx = this.db.transaction(['listings'], 'readonly');
-            const listingStore = tx.objectStore('listings');
-            
-            const request = listingStore.getAll();
-            
-            request.onsuccess = () => {
-                resolve(request.result);
-            };
-            
-            request.onerror = (event) => {
-                console.error('Error getting all listings:', event.target.error);
-                reject(event.target.error);
-            };
-        });
+        const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readonly');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        
+        const listings = await this.IndexedDBHelper.getAll(listingStore);
+        return listings || [];
     }
 
-    // Corresponds to backend/src/admin/index.js GET /listing/signups/:id
     async getListingSignups(listingId) {
-        await this.initPromise;
+        const tx = this.IndexedDBHelper.createTransaction(['listings', 'users', 'user_listings', 'vc_issue_jobs'], 'readonly');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        const userStore = this.IndexedDBHelper.getStore(tx, 'users');
+        const userListingsStore = this.IndexedDBHelper.getStore(tx, 'user_listings');
+        const vcJobsStore = this.IndexedDBHelper.getStore(tx, 'vc_issue_jobs');
         
-        return new Promise((resolve, reject) => {
-            const transaction = this.db.transaction(['listings', 'users', 'user_listings', 'vc_issue_jobs'], 'readonly');
-            const listingStore = transaction.objectStore('listings');
-            const userStore = transaction.objectStore('users');
-            const userListingsStore = transaction.objectStore('user_listings');
-            const vcJobsStore = transaction.objectStore('vc_issue_jobs');
-            
-            const listingRequest = listingStore.get(listingId);
-            
-            listingRequest.onsuccess = async () => {
-                const listing = listingRequest.result;
-                if (!listing) {
-                    resolve([]);
-                    return;
-                }
-                
-                const signups = [];
-                
-                const userListingsIndex = userListingsStore.index('listing_id');
-                const signupsRequest = userListingsIndex.openCursor();
-                
-                signupsRequest.onsuccess = async (event) => {
-                    const cursor = event.target.result;
-                    if (cursor) {
-                        const userListing = cursor.value;
-                        if (userListing.listing_id === listingId) {
-                            try {
-                                const user = await new Promise((resolve, reject) => {
-                                    const userRequest = userStore.get(userListing.user_id);
-                                    userRequest.onsuccess = () => resolve(userRequest.result);
-                                    userRequest.onerror = () => reject(userRequest.error);
-                                });
-                                
-                                if (user) {
-                                    const vcJobs = [];
-                                    const vcJobsRequest = vcJobsStore.openCursor();
-                                    vcJobsRequest.onsuccess = (vcEvent) => {
-                                        const vcCursor = vcEvent.target.result;
-                                        if (vcCursor) {
-                                            const job = vcCursor.value;
-                                            if (job.user_id === userListing.user_id && job.listing_id === userListing.listing_id) {
-                                                vcJobs.push(job);
-                                            }
-                                            vcCursor.continue();
-                                        } else {
-                                            let vcStatus = null;
-                                            
-                                            if (vcJobs.length > 0) {
-                                                const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
-                                                const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
-                                                const vcSuccessCount = vcJobs.filter(job => job.status === VcIssueJobStatus.SUCCESS).length;
-                                                
-                                                if (vcPendingCount > 0) {
-                                                    vcStatus = 'pending';
-                                                } else if (vcFailedCount > 0) {
-                                                    vcStatus = 'failed';
-                                                } else if (vcSuccessCount > 0) {
-                                                    vcStatus = 'success';
-                                                }
-                                            }
-                                            
-                                            signups.push({
-                                                id: userListing.id,
-                                                user_id: userListing.user_id,
-                                                listing_id: userListing.listing_id,
-                                                status: userListing.status,
-                                                created_ts: userListing.created_ts,
-                                                last_modified_ts: userListing.last_modified_ts,
-                                                user_name: user.name,
-                                                user_oc_id: user.oc_id,
-                                                trigger_mode: listing.trigger_mode,
-                                                vc_issue_status: vcStatus
-                                            });
-                                            
-                                            cursor.continue();
-                                        }
-                                    };
-                                    vcJobsRequest.onerror = (error) => {
-                                        console.error('Error fetching VC jobs:', error);
-                                        cursor.continue();
-                                    };
+        const listing = await this.IndexedDBHelper.get(listingStore, listingId);
+        
+        if (!listing) {
+            return { data: [], total: 0 };
+        }
+        
+        const signups = [];
+        
+        const userListingsIndex = this.IndexedDBHelper.getIndex(userListingsStore, 'listing_id');
+        const signupsRequest = userListingsIndex.openCursor(null, 'prev');
+        
+        signupsRequest.onsuccess = async (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+                const userListing = cursor.value;
+                if (userListing.listing_id === listingId) {
+                    try {
+                        const user = await this.IndexedDBHelper.get(userStore, userListing.user_id);
+                        
+                        if (user) {
+                            const vcJobs = [];
+                            const vcJobsRequest = vcJobsStore.openCursor(null, 'prev');
+                            vcJobsRequest.onsuccess = (vcEvent) => {
+                                const vcCursor = vcEvent.target.result;
+                                if (vcCursor) {
+                                    const job = vcCursor.value;
+                                    if (job.user_id === userListing.user_id && job.listing_id === userListing.listing_id) {
+                                        vcJobs.push(job);
+                                    }
+                                    vcCursor.continue();
                                 } else {
-                                    cursor.continue();
+                                    const vcCount = vcJobs.length;
+                                    let vcStatus = null;
+                                    
+                                    if (vcCount > 0) {
+                                        const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
+                                        const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
+                                        const vcSuccessCount = vcJobs.filter(job => job.status === VcIssueJobStatus.SUCCESS).length;
+                                        
+                                        if (vcPendingCount > 0) {
+                                            vcStatus = 'pending';
+                                        } else if (vcFailedCount > 0) {
+                                            vcStatus = 'failed';
+                                        } else if (vcSuccessCount > 0) {
+                                            vcStatus = 'success';
+                                        }
+                                    }
+                                    
+                                    signups.push({
+                                        id: user.id,
+                                        name: user.name,
+                                        email: user.email,
+                                        oc_id: user.oc_id,
+                                        status: userListing.status,
+                                        vc_issue_status: vcStatus,
+                                        vc_count: vcCount,
+                                        created_ts: userListing.created_ts,
+                                        last_modified_ts: userListing.last_modified_ts
+                                    });
                                 }
-                            } catch (error) {
-                                console.warn(`Failed to fetch user ${userListing.user_id}:`, error);
-                                cursor.continue();
-                            }
-                        } else {
-                            cursor.continue();
+                            };
+                            vcJobsRequest.onerror = (error) => {
+                                console.error('Error fetching VC jobs:', error);
+                            };
                         }
-                    } else {
-                        resolve(signups);
+                    } catch (error) {
+                        console.warn(`Failed to fetch user ${userListing.user_id}:`, error);
                     }
-                };
-                
-                signupsRequest.onerror = (error) => {
-                    console.error('Error fetching signups:', error);
-                    reject(error);
-                };
-            };
-            
-            listingRequest.onerror = (error) => {
-                console.error('Error fetching listing:', error);
-                reject(error);
-            };
-        });
+                }
+                cursor.continue();
+            } else {
+                return { data: signups, total: signups.length };
+            }
+        };
+        
+        signupsRequest.onerror = (error) => {
+            console.error('Error fetching signups:', error);
+            return { data: [], total: 0 };
+        };
     }
 
 }
