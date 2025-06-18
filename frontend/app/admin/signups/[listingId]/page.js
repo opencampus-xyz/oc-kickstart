@@ -171,7 +171,7 @@ export default function SignUpsPage() {
                   setSelectedRowId(null);
                 }}
               >
-                Reissue VC
+                Reissue
               </MenuItem>
             </Menu>
           </div>
