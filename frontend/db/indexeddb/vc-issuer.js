@@ -12,7 +12,6 @@ class VCIssuer {
     await dbService.initPromise;
     
     if (!dbService.db) {
-      console.warn('Database not ready yet, skipping VC job query');
       return [];
     }
     
