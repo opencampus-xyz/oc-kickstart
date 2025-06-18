@@ -1,15 +1,13 @@
 import dbService from './db/indexeddb/dbService.js';
 import * as jose from 'jose';
 
-// JWKS cache for 30 minutes (same as backend)
 let jwksCache = null;
 let jwksCacheTime = 0;
-const JWKS_CACHE_TTL = 30 * 60 * 1000; // 30 minutes in milliseconds
+const JWKS_CACHE_TTL = 30 * 60 * 1000;
 
 const fetchJWKS = async () => {
     const now = Date.now();
     
-    // Return cached JWKS if still valid
     if (jwksCache && (now - jwksCacheTime) < JWKS_CACHE_TTL) {
         return jwksCache;
     }
@@ -24,7 +22,6 @@ const fetchJWKS = async () => {
         
         const json = await response.json();
         
-        // Create JWKS and cache it
         jwksCache = jose.createLocalJWKSet(json);
         jwksCacheTime = now;
         
@@ -44,7 +41,6 @@ const verifyJwt = async (jwt) => {
         const JWK = await fetchJWKS();
         const { payload } = await jose.jwtVerify(jwt, JWK);
         
-        // Additional validation
         if (!payload.edu_username) {
             throw new Error('JWT payload missing edu_username');
         }
@@ -69,7 +65,6 @@ const getTokenFromAuthHeader = (authToken) => {
         throw new Error('Auth token is missing');
     }
     
-    // Handle both "Bearer token" format and raw token
     const match = authToken.match(/^Bearer (.+)$/);
     return match ? match[1] : authToken;
 };
@@ -78,13 +73,10 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
     try {
         await dbService.initPromise;
 
-        // Extract token from auth header if needed
         const token = getTokenFromAuthHeader(authToken);
         
-        // Verify JWT token (this replaces the unsafe base64 decoding)
         const tokenPayload = await verifyJwt(token);
         
-        // Validate audience (same as backend)
         const expectedAudience = process.env.NEXT_PUBLIC_AUTH_CLIENT_ID;
         if (!expectedAudience) {
             throw new Error('NEXT_PUBLIC_AUTH_CLIENT_ID environment variable is not set');
@@ -146,11 +138,16 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
 
             case '/auth-user/listings':
                 const userForListings = await dbService.getUserByOCId(ocId);
+                const processedAuthSearchTags = queryParams.searchTags?.split(',').map(tag => tag.replace(/^'|'$/g, ''));
+                console.log('Auth listings searchTags debug:', {
+                    original: queryParams.searchTags,
+                    processed: processedAuthSearchTags
+                });
                 response = await dbService.getListings({
                     page: parseInt(queryParams.page) || 0,
                     pageSize: parseInt(queryParams.pageSize) || 10,
                     searchText: queryParams.searchTitle,
-                    searchTags: queryParams.searchTags?.split(','),
+                    searchTags: processedAuthSearchTags,
                     searchStatus: queryParams.searchStatus,
                     includeUserSignups: true,
                     userId: userForListings?.user?.id
@@ -252,12 +249,18 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 break;
             }
 
+            case '/listings':
             case '/public/listings':
+                const processedSearchTags = queryParams.searchTags?.split(',').map(tag => tag.replace(/^'|'$/g, ''));
+                console.log('Public listings searchTags debug:', {
+                    original: queryParams.searchTags,
+                    processed: processedSearchTags
+                });
                 response = await dbService.getListings({
                     page: parseInt(queryParams.page) || 0,
                     pageSize: parseInt(queryParams.pageSize) || 10,
                     searchText: queryParams.searchTitle,
-                    searchTags: queryParams.searchTags?.split(','),
+                    searchTags: processedSearchTags,
                     searchStatus: queryParams.searchStatus
                 });
                 break;
@@ -342,7 +345,7 @@ export const publicFetch = async (url, options = {}) => {
                         page: parseInt(queryParams.page) || 0,
                         pageSize: parseInt(queryParams.pageSize) || 10,
                         searchText: queryParams.searchTitle,
-                        searchTags: queryParams.searchTags?.split(','),
+                        searchTags: queryParams.searchTags?.split(',').map(tag => tag.replace(/^'|'$/g, '')),
                         searchStatus: queryParams.searchStatus
                     });
                     break;

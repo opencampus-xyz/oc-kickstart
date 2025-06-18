@@ -619,20 +619,44 @@ export class DBService {
     }
 
     async addTagToListings(tagId, listingIds) {
-        const tx = this.IndexedDBHelper.createTransaction(['listing_tags'], 'readwrite');
-        const store = this.IndexedDBHelper.getStore(tx, 'listing_tags');
+        const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'listings');
         
         try {
             for (const listingId of listingIds) {
-                await this.IndexedDBHelper.add(store, {
-                    id: crypto.randomUUID(),
-                    listing_id: listingId,
-                    tag_id: tagId,
-                    created_ts: new Date().toISOString(),
-                    last_modified_ts: new Date().toISOString()
-                });
+                const listing = await this.IndexedDBHelper.get(store, listingId);
+                if (!listing) {
+                    console.warn(`Listing not found: ${listingId}`);
+                    continue;
+                }
+                
+                if (!listing.tags.includes(tagId)) {
+                    listing.tags.push(tagId);
+                    listing.last_modified_ts = new Date().toISOString();
+                    await this.IndexedDBHelper.put(store, listing);
+                }
             }
             return { status: "successful" };
+        } catch (error) {
+            throw error;
+        }
+    }
+
+    async archiveTag(tagId) {
+        const tx = this.IndexedDBHelper.createTransaction(['tags'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'tags');
+        
+        try {
+            const tag = await this.IndexedDBHelper.get(store, tagId);
+            if (!tag) {
+                throw new Error("Tag not found");
+            }
+            
+            tag.archived_ts = new Date().toISOString();
+            tag.last_modified_ts = new Date().toISOString();
+            
+            await this.IndexedDBHelper.put(store, tag);
+            return { message: "Tag archived successfully" };
         } catch (error) {
             throw error;
         }
@@ -927,8 +951,21 @@ export class DBService {
         }
         if (searchTags && searchTags.length > 0) {
             const listingTags = listing.tags || [];
-            const hasAllTags = searchTags.every(tag => listingTags.includes(tag));
+            const listingTagStrings = listingTags.map(tag => String(tag));
+            const searchTagStrings = searchTags.map(tag => String(tag));
+            
+            console.log('Tag filtering debug:', {
+                listingId: listing.id,
+                listingName: listing.name,
+                listingTags,
+                listingTagStrings,
+                searchTags,
+                searchTagStrings
+            });
+            
+            const hasAllTags = searchTagStrings.every(searchTag => listingTagStrings.includes(searchTag));
             if (!hasAllTags) {
+                console.log('Listing filtered out due to missing tags');
                 return false;
             }
         }
@@ -953,8 +990,6 @@ export class DBService {
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], adminOCIDs !== null ? 'readwrite' : 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
         
-        const allConfigs = await this.IndexedDBHelper.getAll(store, null, null);
-        
         const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
         if (adminOCIDs !== null) {
@@ -972,11 +1007,10 @@ export class DBService {
     async setMasterAdmin(ocId) {
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
-        const index = this.IndexedDBHelper.getIndex(store, 'isMasterAdmin');
 
-        const existingMasterAdmin = await this.IndexedDBHelper.getByIndex(index, "true");
+        const existingAdminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
-        if (existingMasterAdmin) {
+        if (existingAdminConfig?.isMasterAdmin === true) {
             throw new Error("A master admin already exists");
         }
 
@@ -993,39 +1027,53 @@ export class DBService {
     async isMasterAdmin(ocId) {
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
-        const index = this.IndexedDBHelper.getIndex(store, 'isMasterAdmin');
         
-        const adminConfig = await this.IndexedDBHelper.getByIndex(index, true);
+        const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
-        return adminConfig?.admin_ocids.includes(ocId);
+        return adminConfig?.isMasterAdmin === true && adminConfig?.admin_ocids?.includes(ocId);
     }
 
     async isAdmin(ocId) {
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
-        const index = this.IndexedDBHelper.getIndex(store, 'admin_ocids');
         
-        const adminConfig = await this.IndexedDBHelper.getByIndex(index, ocId);
+        const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
-        return adminConfig?.admin_ocids.includes(ocId);
+        return adminConfig?.admin_ocids?.includes(ocId);
     }
 
     async makeAdmin(ocId) {
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
-        const index = this.IndexedDBHelper.getIndex(store, 'admin_ocids');
-        const adminConfig = await this.IndexedDBHelper.getByIndex(index, ocId);
-        adminConfig.admin_ocids.push(ocId);
-        await this.IndexedDBHelper.put(store, adminConfig);
+        
+        const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
+        if (!adminConfig) {
+            throw new Error("Admin config not found");
+        }
+        
+        if (!adminConfig.admin_ocids.includes(ocId)) {
+            adminConfig.admin_ocids.push(ocId);
+            adminConfig.last_modified_ts = new Date().toISOString();
+            await this.IndexedDBHelper.put(store, adminConfig);
+        }
+        
+        return { message: "Admin added successfully" };
     }
 
     async removeAdmin(ocId) {
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
-        const index = this.IndexedDBHelper.getIndex(store, 'admin_ocids');
-        const adminConfig = await this.IndexedDBHelper.getByIndex(index, ocId);
+        
+        const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
+        if (!adminConfig) {
+            throw new Error("Admin config not found");
+        }
+        
         adminConfig.admin_ocids = adminConfig.admin_ocids.filter(id => id !== ocId);
+        adminConfig.last_modified_ts = new Date().toISOString();
         await this.IndexedDBHelper.put(store, adminConfig);
+        
+        return { message: "Admin removed successfully" };
     }
 
     async getUsers({ page = 0, pageSize = 10, searchText }) {
@@ -1070,79 +1118,87 @@ export class DBService {
             return { data: [], total: 0 };
         }
         
-        const signups = [];
-        
-        const userListingsIndex = this.IndexedDBHelper.getIndex(userListingsStore, 'listing_id');
-        const signupsRequest = userListingsIndex.openCursor(null, 'prev');
-        
-        signupsRequest.onsuccess = async (event) => {
-            const cursor = event.target.result;
-            if (cursor) {
-                const userListing = cursor.value;
-                if (userListing.listing_id === listingId) {
-                    try {
-                        const user = await this.IndexedDBHelper.get(userStore, userListing.user_id);
-                        
-                        if (user) {
-                            const vcJobs = [];
-                            const vcJobsRequest = vcJobsStore.openCursor(null, 'prev');
-                            vcJobsRequest.onsuccess = (vcEvent) => {
-                                const vcCursor = vcEvent.target.result;
-                                if (vcCursor) {
-                                    const job = vcCursor.value;
-                                    if (job.user_id === userListing.user_id && job.listing_id === userListing.listing_id) {
-                                        vcJobs.push(job);
-                                    }
-                                    vcCursor.continue();
-                                } else {
-                                    const vcCount = vcJobs.length;
-                                    let vcStatus = null;
-                                    
-                                    if (vcCount > 0) {
-                                        const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
-                                        const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
-                                        const vcSuccessCount = vcJobs.filter(job => job.status === VcIssueJobStatus.SUCCESS).length;
-                                        
-                                        if (vcPendingCount > 0) {
-                                            vcStatus = 'pending';
-                                        } else if (vcFailedCount > 0) {
-                                            vcStatus = 'failed';
-                                        } else if (vcSuccessCount > 0) {
-                                            vcStatus = 'success';
+        return new Promise((resolve, reject) => {
+            const signups = [];
+            
+            const userListingsIndex = this.IndexedDBHelper.getIndex(userListingsStore, 'listing_id');
+            const signupsRequest = userListingsIndex.openCursor(null, 'prev');
+            
+            signupsRequest.onsuccess = async (event) => {
+                const cursor = event.target.result;
+                if (cursor) {
+                    const userListing = cursor.value;
+                    if (userListing.listing_id === listingId) {
+                        try {
+                            const user = await this.IndexedDBHelper.get(userStore, userListing.user_id);
+                            
+                            if (user) {
+                                const vcJobs = [];
+                                const vcJobsRequest = vcJobsStore.openCursor(null, 'prev');
+                                vcJobsRequest.onsuccess = (vcEvent) => {
+                                    const vcCursor = vcEvent.target.result;
+                                    if (vcCursor) {
+                                        const job = vcCursor.value;
+                                        if (job.user_id === userListing.user_id && job.listing_id === userListing.listing_id) {
+                                            vcJobs.push(job);
                                         }
+                                        vcCursor.continue();
+                                    } else {
+                                        const vcCount = vcJobs.length;
+                                        let vcStatus = null;
+                                        
+                                        if (vcCount > 0) {
+                                            const vcPendingCount = vcJobs.filter(job => job.status === VcIssueJobStatus.PENDING).length;
+                                            const vcFailedCount = vcJobs.filter(job => job.status === VcIssueJobStatus.FAILED).length;
+                                            const vcSuccessCount = vcJobs.filter(job => job.status === VcIssueJobStatus.SUCCESS).length;
+                                            
+                                            if (vcPendingCount > 0) {
+                                                vcStatus = 'pending';
+                                            } else if (vcFailedCount > 0) {
+                                                vcStatus = 'failed';
+                                            } else if (vcSuccessCount > 0) {
+                                                vcStatus = 'success';
+                                            }
+                                        }
+                                        
+                                        signups.push({
+                                            id: user.id,
+                                            name: user.name,
+                                            email: user.email,
+                                            oc_id: user.oc_id,
+                                            status: userListing.status,
+                                            vc_issue_status: vcStatus,
+                                            vc_count: vcCount,
+                                            created_ts: userListing.created_ts,
+                                            last_modified_ts: userListing.last_modified_ts
+                                        });
+                                        cursor.continue();
                                     }
-                                    
-                                    signups.push({
-                                        id: user.id,
-                                        name: user.name,
-                                        email: user.email,
-                                        oc_id: user.oc_id,
-                                        status: userListing.status,
-                                        vc_issue_status: vcStatus,
-                                        vc_count: vcCount,
-                                        created_ts: userListing.created_ts,
-                                        last_modified_ts: userListing.last_modified_ts
-                                    });
-                                }
-                            };
-                            vcJobsRequest.onerror = (error) => {
-                                console.error('Error fetching VC jobs:', error);
-                            };
+                                };
+                                vcJobsRequest.onerror = (error) => {
+                                    console.error('Error fetching VC jobs:', error);
+                                    cursor.continue();
+                                };
+                            } else {
+                                cursor.continue();
+                            }
+                        } catch (error) {
+                            console.warn(`Failed to fetch user ${userListing.user_id}:`, error);
+                            cursor.continue();
                         }
-                    } catch (error) {
-                        console.warn(`Failed to fetch user ${userListing.user_id}:`, error);
+                    } else {
+                        cursor.continue();
                     }
+                } else {
+                    resolve({ data: signups, total: signups.length });
                 }
-                cursor.continue();
-            } else {
-                return { data: signups, total: signups.length };
-            }
-        };
-        
-        signupsRequest.onerror = (error) => {
-            console.error('Error fetching signups:', error);
-            return { data: [], total: 0 };
-        };
+            };
+            
+            signupsRequest.onerror = (error) => {
+                console.error('Error fetching signups:', error);
+                reject(error);
+            };
+        });
     }
 
 }
