@@ -587,7 +587,6 @@ export class DBService {
                 const cursor = event.target.result;
                 if (cursor) {
                     const tag = cursor.value;
-                    console.log('Raw tag from IndexedDB:', tag);
                     if (!tag.archived_ts) {
                         const vc_properties = tag.vc_properties || {};
                         const formattedTag = {
@@ -598,13 +597,11 @@ export class DBService {
                                 expireInDays: tag.expireInDays || vc_properties.expireInDays || null
                             }
                         };
-                        console.log('Formatted tag:', formattedTag);
                         results.push(formattedTag);
                         count++;
                     }
                     cursor.continue();
                 } else {
-                    console.log('All tags returned:', results);
                     resolve({ data: results, total: count });
                 }
             };
@@ -671,30 +668,23 @@ export class DBService {
     }
 
     async addTagToListings(tagId, listingIds) {
-        console.log('addTagToListings called with:', { tagId, listingIds });
         const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readwrite');
         const store = this.IndexedDBHelper.getStore(tx, 'listings');
         
         try {
             for (const listingId of listingIds) {
-                console.log('Processing listing:', listingId);
                 const listing = await this.IndexedDBHelper.get(store, listingId);
                 if (!listing) {
                     console.warn(`Listing not found: ${listingId}`);
                     continue;
                 }
                 
-                console.log('Found listing:', listing);
                 if (!listing.tags.includes(tagId)) {
                     listing.tags.push(tagId);
                     listing.last_modified_ts = new Date().toISOString();
                     await this.IndexedDBHelper.put(store, listing);
-                    console.log('Added tag to listing successfully');
-                } else {
-                    console.log('Tag already exists in listing');
                 }
             }
-            console.log('addTagToListings completed successfully');
             return { status: "successful" };
         } catch (error) {
             console.error('Error in addTagToListings:', error);

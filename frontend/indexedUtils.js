@@ -206,10 +206,8 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 break;
 
             case '/admin/add-tag':
-                console.log('Admin add-tag request intercepted with body:', body);
                 try {
                     const addTagResponse = await dbService.addTagToListings(body.tag, body.listings);
-                    console.log('Admin add-tag response:', addTagResponse);
                     response = { status: "successful" };
                 } catch (error) {
                     console.error('Error in add-tag interceptor:', error);
@@ -218,9 +216,7 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 break;
 
             case '/admin/tags':
-                console.log('Admin tags request intercepted');
                 response = await dbService.getTags();
-                console.log('Admin tags response:', response);
                 break;
 
             case '/tags':

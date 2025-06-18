@@ -20,6 +20,7 @@
     "@opencampus/ocid-connect-js": "^2.0.3",
     "@toolpad/core": "^0.14.0",
     "date-fns": "^4.1.0",
+    "error": "^10.4.0",
     "install": "^0.13.0",
     "jose": "^6.0.11",
     "lodash": "^4.17.21",
