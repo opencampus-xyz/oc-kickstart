@@ -141,12 +141,12 @@ export default function SignUpsPage() {
                 handleIssueOCA(params.row.user_id, params.row.listing_id)
               }
             >
-              Issue Initial VC
+              Issue
             </MenuItem>
             <MenuItem
-              disabled={params.row.status !== "completed"}
+              disabled={params.row.status !== "completed" || params.row.vc_issue_status !== "failed"}
               onClick={() =>
-                handleIssueOCA(params.row.user_id, params.row.listing_id, "reissue")
+                handleIssueOCA(params.row.user_id, params.row.listing_id)
               }
             >
               Reissue VC
