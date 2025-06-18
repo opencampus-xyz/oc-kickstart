@@ -68,9 +68,7 @@ export default function Home() {
   };
 
   const fetchListings = async (targetPage) => {
-    if (targetPage !== page || searchText || searchTags.length > 0 || searchStatus !== 'all') {
-      setLoading(true);
-    }
+    setLoading(true);
 
     const params = getSearchParams(targetPage);
     if (isRegisteredUser) {

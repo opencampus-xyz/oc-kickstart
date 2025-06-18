@@ -6,6 +6,7 @@ import { useState } from "react";
 import { ListingSignUp } from "./ListingSignUp";
 import { useRouter } from "next/navigation";
 import { useUser } from "@/providers/UserProvider";
+import { capitalize } from "lodash";
 
 export const ListingDetails = ({ listing }) => {
 const [showShareDialog, setShowShareDialog] = useState(false);
@@ -21,10 +22,9 @@ return <div className={styles.pageContainer}>
     <div className={styles.header}>
       <Typography variant="h2">{listing.name}</Typography>
       <Chip 
-        label={listing.vc_properties.achievementType.charAt(0).toUpperCase() + listing.vc_properties.achievementType.slice(1)} 
+        label={capitalize(listing.vc_properties.achievementType)}
         color="primary" 
         variant="outlined"
-        className={styles.capitalizeFirst}
       />
       <ListingShareButton
         listing={listing}
@@ -48,7 +48,7 @@ return <div className={styles.pageContainer}>
       <div className={styles.detailsGrid}>
         <div className={styles.detailItem}>
           <Typography variant="subtitle2" color="text.secondary">Status</Typography>
-          <Typography variant="body1" className={styles.capitalizeFirst}>{listing.status}</Typography>
+          <Typography variant="body1">{capitalize(listing.status)}</Typography>
         </div>
         <div className={styles.detailItem}>
           <Typography variant="subtitle2" color="text.secondary">Sign Up Limit</Typography>
@@ -103,7 +103,7 @@ return <div className={styles.pageContainer}>
           )}
           <div className={styles.detailItem}>
             <Typography variant="subtitle2" color="text.secondary">Achievement Type</Typography>
-            <Typography variant="body1" className={styles.capitalizeFirst}>{listing.vc_properties.achievementType}</Typography>
+            <Typography variant="body1">{capitalize(listing.vc_properties.achievementType)}</Typography>
           </div>
           {listing.vc_properties.expireInDays && (
             <div className={styles.detailItem}>

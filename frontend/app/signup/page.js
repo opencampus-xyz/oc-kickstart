@@ -53,7 +53,7 @@ export default function Signup() {
 
       const requestBody = { 
         name, 
-        email: email || authState.user?.email
+        email: email
       };
 
       const response = await fetchWithAuth("/signup", {
