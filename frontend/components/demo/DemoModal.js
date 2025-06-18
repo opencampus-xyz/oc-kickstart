@@ -62,7 +62,7 @@ export const DemoModal = ({ open, onClose }) => {
       <DialogContent sx={{ pt: 3 }}>
         <Alert severity="info" sx={{ mb: 3 }}>
           <Typography variant="body1" fontWeight="medium">
-            Welcome to the {config.appTitle} demo! This is a demonstration environment showcasing Open Credential (OC) management capabilities.
+            Welcome to the {config.appTitle} demo! This is a demonstration environment showcasing OC Achievement management capabilities.
           </Typography>
         </Alert>
 

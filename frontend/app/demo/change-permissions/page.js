@@ -7,8 +7,8 @@ import React, { useState } from "react";
 export default function ChangePermissions() {
   const { isMasterAdmin, isAdmin, isRegisteredUser, user, isInitialized } = useUser();
   const fetchWithAuth = useAuthenticatedFetch();
-  const [anchorEl, setAnchorEl] = React.useState(null);
-  const [newPermission, setNewPermission] = React.useState(
+  const [anchorEl, setAnchorEl] = useState(null);
+  const [newPermission, setNewPermission] = useState(
     isMasterAdmin ? "master-admin" : isAdmin ? "admin" : isRegisteredUser ? "registered-user" : "unregistered-user"
   );
   const open = Boolean(anchorEl);
