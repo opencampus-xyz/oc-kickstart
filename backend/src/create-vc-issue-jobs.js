@@ -1,5 +1,9 @@
 import { addDays } from "date-fns";
 import db from "./db.js";
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
+
+// Generate a random namespace using v4, but use it with v5 for deterministic UUIDs
+const UUID_NAMESPACE = uuidv4();
 
 export const createVCIssueJobs = async (userId, listingId) => {
   // get listing, tags and user details to create the payload
@@ -42,8 +46,12 @@ export const createVCIssueJobs = async (userId, listingId) => {
   };
 
   const generateOCAPayload = (vcProperties, description, identifier, title) => {
+    const uniqueString = `${userId}_${identifier}`;
+    const issuerReferenceId = uuidv5(uniqueString, UUID_NAMESPACE);
+
     return {
       holderOcId: userDetails.ocId,
+      issuerReferenceId: issuerReferenceId,
       credentialPayload: {
         awardedDate: now,
         validFrom: now,
@@ -76,7 +84,7 @@ export const createVCIssueJobs = async (userId, listingId) => {
       generateOCAPayload(
         tag.vc_properties,
         tag.description,
-        tag.id,
+        `${listingId}_${tag.id}`,
         `${listingVcProperties.title} - ${tag.vc_properties.title}`
       )
     ),

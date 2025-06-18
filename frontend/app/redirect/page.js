@@ -5,6 +5,7 @@ import { useUser } from "@/providers/UserProvider";
 import { LoginCallBack, useOCAuth } from "@opencampus/ocid-connect-js";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { enqueueSnackbar } from "notistack";
 
 export default function RedirectPage() {
   const router = useRouter();
@@ -21,7 +22,11 @@ export default function RedirectPage() {
 
   const loginSuccess = async () => {
     if (stateFromSDK) {
-      const { path } = JSON.parse(stateFromSDK);
+      const { path, originUrl } = JSON.parse(stateFromSDK);
+      if (originUrl) {
+        router.push(originUrl);
+        return;
+      }
       if (path === "signup") {
         router.push("/signup");
         return;

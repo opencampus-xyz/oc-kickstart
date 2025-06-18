@@ -17,12 +17,15 @@ import {
 } from "@mui/material";
 import { capitalize, keyBy } from "lodash";
 import { enqueueSnackbar } from "notistack";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import styles from "./home.module.css";
+import { useSearchParams, useRouter } from "next/navigation";
 
 const PAGE_SIZE = 9;
 
 export default function Home() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
   const [listings, setListings] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTags, setSearchTags] = useState([]);
@@ -33,6 +36,9 @@ export default function Home() {
   const [total, setTotal] = useState(0);
   const { isRegisteredUser } = useUser();
   const fetchWithAuth = useAuthenticatedFetch();
+
+  const tagsKeyById = useMemo(() => keyBy(tags, "id"), [tags]);
+
   const fetchListingsWithUserSignUps = async (params) => {
     try {
       const response = await fetchWithAuth(`/auth-user/listings?${params}`);
@@ -60,6 +66,7 @@ export default function Home() {
       });
     }
   };
+
   const fetchListings = async (targetPage) => {
     setLoading(true);
 
@@ -90,9 +97,49 @@ export default function Home() {
     fetchListings();
   }, [isRegisteredUser, searchTags, page, searchStatus]);
 
+  const searchParamsEffect = useMemo(() => {
+    const tagsParam = searchParams.get('tags');
+    if (tagsParam === null) {
+      if (searchTags.length > 0) {
+        setSearchTags([]);
+      }
+    } else {
+      const tagIds = tagsParam ? tagsParam.split(',') : [];
+      const activeTagIds = tagIds.filter(id => tagsKeyById[id]);
+      setSearchTags(activeTagIds);
+      if (activeTagIds.length !== tagIds.length) {
+        const params = new URLSearchParams(window.location.search);
+        if (activeTagIds.length >= 1) {
+          params.set('tags', activeTagIds.join(','));
+        } else {
+          params.delete('tags');
+        }
+        if (params.toString()) {
+          router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
+        }
+      }
+    }
+  }, [searchParams, tagsKeyById, searchTags, router]);
+
+  useEffect(() => {
+    searchParamsEffect;
+  }, [searchParamsEffect]);
+
   const handleChangeTags = (e) => {
+    const newTags = e.target.value;
     setPage(1);
-    setSearchTags(e.target.value);
+    setSearchTags(newTags);
+    
+    const params = new URLSearchParams(window.location.search);
+    if (newTags.length >= 1) {
+      params.set('tags', newTags.join(','));
+    } else {
+      params.delete('tags');
+    }
+    
+    if (params.toString()) {
+      router.push(`/home?${params.toString()}`);
+    }
   };
 
   const handleChangeStatus = (e) => {
@@ -124,7 +171,6 @@ export default function Home() {
     fetchListings(1);
   };
 
-  const tagsKeyById = keyBy(tags, "id");
   return (
     <div>
       <img src="/assets/banner.jpg" height="300" width="100%" />
@@ -146,7 +192,7 @@ export default function Home() {
                 renderValue={(selected) => (
                   <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
                     {selected.map((value) => (
-                      <Chip key={value} label={tagsKeyById[value].name} />
+                      <Chip key={value} label={tagsKeyById[value].name}/>
                     ))}
                   </Box>
                 )}
@@ -187,15 +233,13 @@ export default function Home() {
           )}
         </div>
         <div className={styles.listingsContainer}>
-          {loading && <Loading />}
-          {!loading &&
+          {loading ? (
+            <Loading />
+          ) : (
             listings.map((listing) => (
-              <ListingCard
-                key={listing.id}
-                listing={listing}
-                refetch={fetchListings}
-              />
-            ))}
+              <ListingCard key={listing.id} listing={listing} />
+            ))
+          )}
         </div>
       </div>
     </div>
