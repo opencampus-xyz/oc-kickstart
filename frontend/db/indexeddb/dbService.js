@@ -684,73 +684,82 @@ export class DBService {
                     allListings.push(listing);
                     
                     const statusMatches = showAllStatuses || listing.status === ListingStatus.ACTIVE;
-                    if (statusMatches && this.matchesListingFilters(listing, { searchText, searchTags, searchStatus })) {
-                        if (count >= page * pageSize && count < (page + 1) * pageSize) {
-                            if (includeUserSignups && userId) {
-                                listing.sign_up_status = await this.getUserSignupStatus(listing, userId);
-                            }
-                            
-                            const signupsCount = await new Promise((resolve) => {
-                                const userListingsIndex = this.IndexedDBHelper.getIndex(userListingsStore, 'listing_id');
-                                const signupsRequest = userListingsIndex.openCursor(null, 'prev');
-                                let count = 0;
+                    if (statusMatches && this.matchesListingFilters(listing, { searchText, searchTags })) {
+                        let shouldIncludeListing = true;
+                        
+                        if (includeUserSignups && userId && searchStatus && searchStatus !== "all") {
+                            const userSignupStatus = await this.getUserSignupStatus(listing, userId);
+                            shouldIncludeListing = userSignupStatus === searchStatus;
+                        }
+                        
+                        if (shouldIncludeListing) {
+                            if (count >= page * pageSize && count < (page + 1) * pageSize) {
+                                if (includeUserSignups && userId) {
+                                    listing.sign_up_status = await this.getUserSignupStatus(listing, userId);
+                                }
                                 
-                                signupsRequest.onsuccess = (event) => {
-                                    const signupCursor = event.target.result;
-                                    if (signupCursor) {
-                                        const signup = signupCursor.value;
-                                        if (signup.listing_id === listing.id && 
-                                            (signup.status === 'approved' || signup.status === 'pending' || signup.status === 'completed')) {
-                                            count++;
+                                const signupsCount = await new Promise((resolve) => {
+                                    const userListingsIndex = this.IndexedDBHelper.getIndex(userListingsStore, 'listing_id');
+                                    const signupsRequest = userListingsIndex.openCursor(null, 'prev');
+                                    let count = 0;
+                                    
+                                    signupsRequest.onsuccess = (event) => {
+                                        const signupCursor = event.target.result;
+                                        if (signupCursor) {
+                                            const signup = signupCursor.value;
+                                            if (signup.listing_id === listing.id && 
+                                                (signup.status === 'approved' || signup.status === 'pending' || signup.status === 'completed')) {
+                                                count++;
+                                            }
+                                            signupCursor.continue();
+                                        } else {
+                                            resolve(count);
                                         }
-                                        signupCursor.continue();
-                                    } else {
-                                        resolve(count);
-                                    }
-                                };
+                                    };
+                                    
+                                    signupsRequest.onerror = (error) => {
+                                        console.error('Error in signups cursor:', error);
+                                        resolve(0);
+                                    };
+                                });
                                 
-                                signupsRequest.onerror = (error) => {
-                                    console.error('Error in signups cursor:', error);
-                                    resolve(0);
-                                };
-                            });
-                            
-                            let fallbackCount = 0;
-                            if (listing.signups && Array.isArray(listing.signups)) {
-                                fallbackCount = listing.signups.filter((signup) => {
-                                    if (Array.isArray(signup) && signup.length >= 2) {
-                                        const status = signup[1];
-                                        return status === 'approved' || status === 'pending' || status === 'completed';
-                                    } else if (signup && typeof signup === 'object' && signup.status) {
-                                        return signup.status === 'approved' || signup.status === 'pending' || signup.status === 'completed';
-                                    }
-                                    return false;
-                                }).length;
-                            }
-                            
-                            const finalSignupsCount = Math.max(signupsCount, fallbackCount);
-                            
-                            const tagNames = [];
-                            if (listing.tags && listing.tags.length > 0) {
-                                for (const tagId of listing.tags) {
-                                    try {
-                                        const tag = await this.IndexedDBHelper.get(tagStore, tagId);
-                                        if (tag && !tag.archived_ts) {
-                                            tagNames.push(tag.name);
+                                let fallbackCount = 0;
+                                if (listing.signups && Array.isArray(listing.signups)) {
+                                    fallbackCount = listing.signups.filter((signup) => {
+                                        if (Array.isArray(signup) && signup.length >= 2) {
+                                            const status = signup[1];
+                                            return status === 'approved' || status === 'pending' || status === 'completed';
+                                        } else if (signup && typeof signup === 'object' && signup.status) {
+                                            return signup.status === 'approved' || signup.status === 'pending' || signup.status === 'completed';
                                         }
-                                    } catch (error) {
-                                        console.warn(`Failed to fetch tag ${tagId}:`, error);
+                                        return false;
+                                    }).length;
+                                }
+                                
+                                const finalSignupsCount = Math.max(signupsCount, fallbackCount);
+                                
+                                const tagNames = [];
+                                if (listing.tags && listing.tags.length > 0) {
+                                    for (const tagId of listing.tags) {
+                                        try {
+                                            const tag = await this.IndexedDBHelper.get(tagStore, tagId);
+                                            if (tag && !tag.archived_ts) {
+                                                tagNames.push(tag.name);
+                                            }
+                                        } catch (error) {
+                                            console.warn(`Failed to fetch tag ${tagId}:`, error);
+                                        }
                                     }
                                 }
+                                
+                                results.push({
+                                    ...listing,
+                                    signups_count: finalSignupsCount,
+                                    tag_names: tagNames
+                                });
                             }
-                            
-                            results.push({
-                                ...listing,
-                                signups_count: finalSignupsCount,
-                                tag_names: tagNames
-                            });
+                            count++;
                         }
-                        count++;
                     }
                     cursor.continue();
                 } else {
@@ -937,10 +946,7 @@ export class DBService {
         return job;
     }
 
-    matchesListingFilters(listing, { searchText, searchTags, searchStatus }) {
-        if (searchStatus && searchStatus !== "all" && listing.status !== searchStatus) {
-            return false;
-        }
+    matchesListingFilters(listing, { searchText, searchTags }) {
         if (searchText) {
             const searchLower = searchText.toLowerCase();
             const nameMatch = listing.name?.toLowerCase().includes(searchLower);
@@ -954,18 +960,8 @@ export class DBService {
             const listingTagStrings = listingTags.map(tag => String(tag));
             const searchTagStrings = searchTags.map(tag => String(tag));
             
-            console.log('Tag filtering debug:', {
-                listingId: listing.id,
-                listingName: listing.name,
-                listingTags,
-                listingTagStrings,
-                searchTags,
-                searchTagStrings
-            });
-            
             const hasAllTags = searchTagStrings.every(searchTag => listingTagStrings.includes(searchTag));
             if (!hasAllTags) {
-                console.log('Listing filtered out due to missing tags');
                 return false;
             }
         }

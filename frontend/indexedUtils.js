@@ -138,16 +138,11 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
 
             case '/auth-user/listings':
                 const userForListings = await dbService.getUserByOCId(ocId);
-                const processedAuthSearchTags = queryParams.searchTags?.split(',').map(tag => tag.replace(/^'|'$/g, ''));
-                console.log('Auth listings searchTags debug:', {
-                    original: queryParams.searchTags,
-                    processed: processedAuthSearchTags
-                });
                 response = await dbService.getListings({
                     page: parseInt(queryParams.page) || 0,
                     pageSize: parseInt(queryParams.pageSize) || 10,
                     searchText: queryParams.searchTitle,
-                    searchTags: processedAuthSearchTags,
+                    searchTags: queryParams.searchTags?.split(',').map(tag => tag.replace(/^'|'$/g, '')),
                     searchStatus: queryParams.searchStatus,
                     includeUserSignups: true,
                     userId: userForListings?.user?.id
@@ -252,10 +247,6 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
             case '/listings':
             case '/public/listings':
                 const processedSearchTags = queryParams.searchTags?.split(',').map(tag => tag.replace(/^'|'$/g, ''));
-                console.log('Public listings searchTags debug:', {
-                    original: queryParams.searchTags,
-                    processed: processedSearchTags
-                });
                 response = await dbService.getListings({
                     page: parseInt(queryParams.page) || 0,
                     pageSize: parseInt(queryParams.pageSize) || 10,
