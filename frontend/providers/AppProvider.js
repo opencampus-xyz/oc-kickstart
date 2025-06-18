@@ -104,7 +104,7 @@ export const AppProvider = ({ children }) => {
   const toolbarActions = () => {
     const router = useRouter();
     if (authState?.isAuthenticated) return null;
-    const onClick = () => router.push("/login");
+    const onClick = () => router.push(`/login?originUrl=${encodeURIComponent(window.location.href)}`);
     return (
       <Button variant="contained" onClick={onClick}>
         Login / Sign up
