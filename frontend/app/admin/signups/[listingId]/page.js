@@ -163,6 +163,16 @@ export default function SignUpsPage() {
               >
                 Issue
               </MenuItem>
+              <MenuItem
+                disabled={params.row.status !== "completed" || params.row.vc_issue_status !== "failed"}
+                onClick={() => {
+                  handleIssueOCA(params.row.user_id, params.row.listing_id);
+                  setMenuAnchorEl(null);
+                  setSelectedRowId(null);
+                }}
+              >
+                Reissue
+              </MenuItem>
             </Menu>
           </div>
         );
