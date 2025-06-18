@@ -452,6 +452,7 @@ export class DBService {
             const listingDoc = createListingDocument({
                 ...listingData,
                 tags: listingData.tags || [],
+                trigger_mode: listingData.triggerMode?.toLowerCase() ?? ListingTriggerMode.MANUAL,
                 sign_ups_limit: parseInt(listingData.maxSignUps),
                 vc_properties: {
                     title: listingData.title,

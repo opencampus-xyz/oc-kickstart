@@ -37,7 +37,7 @@ export const ListingCard = ({ listing, refetch }) => {
             </Typography>
           </CardContent>
         </CardActionArea>
-        <CardActions>
+        <CardActions onClick={(e) => e.stopPropagation()}>
           <ListingSignUp listing={listing} size="small" />
           <Tooltip title="Share Listing">
             <span>
