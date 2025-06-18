@@ -19,21 +19,6 @@ setInterval(() => {
 app.use(cors());
 app.use(express.json());
 
-app.use((req, res, next) => {
-  console.log('Request:', {
-    method: req.method,
-    url: req.url,
-    headers: {
-      authorization: req.headers.authorization ? 'Bearer [REDACTED]' : 'missing',
-      ...Object.fromEntries(
-        Object.entries(req.headers)
-          .filter(([key]) => key !== 'authorization')
-      )
-    }
-  });
-  next();
-});
-
 app.use("/public", publicRouter);
 
 app.use((req, res, next) => authWithToken(req, res, next));
