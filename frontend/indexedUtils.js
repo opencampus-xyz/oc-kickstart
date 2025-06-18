@@ -198,15 +198,29 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 break;
 
             case '/admin/tag':
-                response = await dbService.createTag(body);
+                if (body.method === 'update') {
+                    response = await dbService.updateTag(body);
+                } else {
+                    response = await dbService.createTag(body);
+                }
                 break;
 
             case '/admin/add-tag':
-                response = await dbService.addTagToListings(body.tag, body.listings);
+                console.log('Admin add-tag request intercepted with body:', body);
+                try {
+                    const addTagResponse = await dbService.addTagToListings(body.tag, body.listings);
+                    console.log('Admin add-tag response:', addTagResponse);
+                    response = { status: "successful" };
+                } catch (error) {
+                    console.error('Error in add-tag interceptor:', error);
+                    throw error;
+                }
                 break;
 
             case '/admin/tags':
+                console.log('Admin tags request intercepted');
                 response = await dbService.getTags();
+                console.log('Admin tags response:', response);
                 break;
 
             case '/tags':
@@ -258,7 +272,8 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
 
             case (endpoint.match(/^\/admin\/listing\/signups\/([^\/]+)$/) || {}).input: {
                 const listingId = endpoint.split('/').pop();
-                response = await dbService.getListingSignups(listingId);
+                const signupsResponse = await dbService.getListingSignups(listingId);
+                response = signupsResponse.data;
                 break;
             }
 
@@ -274,10 +289,11 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 response = listing;
                 break;
             }
-            case '/admin/tag/archive/:id':
-                const tagId = url.split('/').pop();
+            case (endpoint.match(/^\/admin\/tag\/archive\/([^\/]+)$/) || {}).input: {
+                const tagId = endpoint.split('/').pop();
                 response = await dbService.archiveTag(tagId);
                 break;
+            }
 
             case '/master-admin/admin-configs':
                 if (options.method === 'POST') {

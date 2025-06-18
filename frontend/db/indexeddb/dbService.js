@@ -587,12 +587,24 @@ export class DBService {
                 const cursor = event.target.result;
                 if (cursor) {
                     const tag = cursor.value;
+                    console.log('Raw tag from IndexedDB:', tag);
                     if (!tag.archived_ts) {
-                        results.push(tag);
+                        const vc_properties = tag.vc_properties || {};
+                        const formattedTag = {
+                            ...tag,
+                            vc_properties: {
+                                title: tag.title || vc_properties.title || '',
+                                achievementType: tag.achievementType || vc_properties.achievementType || '',
+                                expireInDays: tag.expireInDays || vc_properties.expireInDays || null
+                            }
+                        };
+                        console.log('Formatted tag:', formattedTag);
+                        results.push(formattedTag);
                         count++;
                     }
                     cursor.continue();
                 } else {
+                    console.log('All tags returned:', results);
                     resolve({ data: results, total: count });
                 }
             };
@@ -613,32 +625,80 @@ export class DBService {
             throw new Error("Tag already exists");
         }
 
-        const tagDoc = createTagDocument(tagData);
+        const tagDoc = createTagDocument({
+            ...tagData,
+            title: tagData.title || '',
+            achievementType: tagData.achievementType || '',
+            expireInDays: tagData.expireInDays ? parseInt(tagData.expireInDays) : null,
+            vc_properties: {
+                title: tagData.title || '',
+                achievementType: tagData.achievementType || '',
+                expireInDays: tagData.expireInDays ? parseInt(tagData.expireInDays) : null
+            }
+        });
         await this.IndexedDBHelper.add(store, tagDoc);
         return tagDoc;
     }
 
+    async updateTag(tagData) {
+        const tx = this.IndexedDBHelper.createTransaction(['tags'], 'readwrite');
+        const store = this.IndexedDBHelper.getStore(tx, 'tags');
+        
+        const index = this.IndexedDBHelper.getIndex(store, 'name');
+        const existingTag = await this.IndexedDBHelper.getByIndex(index, tagData.name);
+        
+        if (!existingTag) {
+            throw new Error("Tag not found");
+        }
+
+        const updatedTag = {
+            ...existingTag,
+            description: tagData.description,
+            can_issue_oca: tagData.can_issue_oca,
+            title: tagData.title || '',
+            achievementType: tagData.achievementType || '',
+            expireInDays: tagData.expireInDays ? parseInt(tagData.expireInDays) : null,
+            vc_properties: {
+                title: tagData.title || '',
+                achievementType: tagData.achievementType || '',
+                expireInDays: tagData.expireInDays ? parseInt(tagData.expireInDays) : null
+            },
+            last_modified_ts: new Date().toISOString()
+        };
+
+        await this.IndexedDBHelper.put(store, updatedTag);
+        return updatedTag;
+    }
+
     async addTagToListings(tagId, listingIds) {
+        console.log('addTagToListings called with:', { tagId, listingIds });
         const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readwrite');
         const store = this.IndexedDBHelper.getStore(tx, 'listings');
         
         try {
             for (const listingId of listingIds) {
+                console.log('Processing listing:', listingId);
                 const listing = await this.IndexedDBHelper.get(store, listingId);
                 if (!listing) {
                     console.warn(`Listing not found: ${listingId}`);
                     continue;
                 }
                 
+                console.log('Found listing:', listing);
                 if (!listing.tags.includes(tagId)) {
                     listing.tags.push(tagId);
                     listing.last_modified_ts = new Date().toISOString();
                     await this.IndexedDBHelper.put(store, listing);
+                    console.log('Added tag to listing successfully');
+                } else {
+                    console.log('Tag already exists in listing');
                 }
             }
+            console.log('addTagToListings completed successfully');
             return { status: "successful" };
         } catch (error) {
-            throw error;
+            console.error('Error in addTagToListings:', error);
+            throw new Error('Failed to add tag to listings');
         }
     }
 
@@ -1158,15 +1218,15 @@ export class DBService {
                                         }
                                         
                                         signups.push({
-                                            id: user.id,
-                                            name: user.name,
-                                            email: user.email,
-                                            oc_id: user.oc_id,
+                                            user_id: user.id,
+                                            listing_id: listingId,
+                                            user_name: user.name,
+                                            user_oc_id: user.oc_id,
                                             status: userListing.status,
+                                            trigger_mode: listing.trigger_mode,
                                             vc_issue_status: vcStatus,
                                             vc_count: vcCount,
-                                            created_ts: userListing.created_ts,
-                                            last_modified_ts: userListing.last_modified_ts
+                                            created_ts: userListing.created_ts
                                         });
                                         cursor.continue();
                                     }

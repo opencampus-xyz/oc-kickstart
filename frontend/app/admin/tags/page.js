@@ -46,6 +46,7 @@ export default function Tags() {
               variant="text"
               color="primary"
               onClick={() => {
+                console.log('Edit button clicked for tag:', params.row);
                 setEditingTag(params.row);
                 setShowTagEditModal(true);
               }}
@@ -67,8 +68,9 @@ export default function Tags() {
     },
   ];
 
-  const formatData = (data) =>
-    data.map((tag) => ({
+  const formatData = (data) => {
+    console.log('Raw data from API:', data);
+    const formatted = data.map((tag) => ({
       id: tag.id,
       name: tag.name,
       description: tag.description,
@@ -77,6 +79,9 @@ export default function Tags() {
       status: tag.archived_ts ? "Archived" : "Active",
       vc_properties: tag.vc_properties,
     }));
+    console.log('Formatted data:', formatted);
+    return formatted;
+  };
 
   const onClose = () => {
     setShowTagEditModal(false);
