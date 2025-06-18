@@ -13,7 +13,8 @@ export default function SignUpsPage() {
   const { listingId } = useParams();
   const [userListings, setUserListings] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [actionMenuEl, setActionMenuEl] = useState();
+  const [menuAnchorEl, setMenuAnchorEl] = useState(null);
+  const [selectedRowId, setSelectedRowId] = useState(null);
   const fetchWithAuth = useAuthenticatedFetch();
   const router = useRouter();
 
@@ -84,68 +85,88 @@ export default function SignUpsPage() {
       field: "actions",
       headerName: "Actions",
       width: 350,
-      renderCell: (params) => (
-        <div>
-          <Button onClick={(e) => setActionMenuEl(e.currentTarget)}>
-            Actions
-          </Button>
-          <Menu
-            anchorEl={actionMenuEl}
-            open={Boolean(actionMenuEl)}
-            onClose={() => setActionMenuEl(null)}
-            anchorPosition={{ vertical: "bottom", horizontal: "center" }}
-          >
-            <MenuItem
-              disabled={params.row.status !== "pending"}
-              onClick={() =>
-                handleUpdateStatus(
-                  params.row.user_id,
-                  params.row.listing_id,
-                  "approved"
-                )
-              }
+      renderCell: (params) => {
+        const rowId = `${params.row.user_id}-${params.row.listing_id}`;
+        return (
+          <div>
+            <Button 
+              onClick={(e) => {
+                setMenuAnchorEl(e.currentTarget);
+                setSelectedRowId(rowId);
+              }}
             >
-              Approve
-            </MenuItem>
-            <MenuItem
-              disabled={params.row.status !== "pending"}
-              onClick={() =>
-                handleUpdateStatus(
-                  params.row.user_id,
-                  params.row.listing_id,
-                  "declined"
-                )
-              }
+              Actions
+            </Button>
+            <Menu
+              anchorEl={menuAnchorEl}
+              open={selectedRowId === rowId}
+              onClose={() => {
+                setMenuAnchorEl(null);
+                setSelectedRowId(null);
+              }}
             >
-              Decline
-            </MenuItem>
-            <MenuItem
-              disabled={params.row.status !== "approved"}
-              onClick={() =>
-                handleUpdateStatus(
-                  params.row.user_id,
-                  params.row.listing_id,
-                  "completed"
-                )
-              }
-            >
-              Complete
-            </MenuItem>
-            <MenuItem
-              disabled={
-                params.row.status !== "completed" ||
-                params.row.trigger_mode === "auto" ||
-                !!params.row.vc_issue_status
-              }
-              onClick={() =>
-                handleIssueOCA(params.row.user_id, params.row.listing_id)
-              }
-            >
-              Issue
-            </MenuItem>
-          </Menu>
-        </div>
-      ),
+              <MenuItem
+                disabled={params.row.status !== "pending"}
+                onClick={() => {
+                  handleUpdateStatus(
+                    params.row.user_id,
+                    params.row.listing_id,
+                    "approved"
+                  );
+                  setMenuAnchorEl(null);
+                  setSelectedRowId(null);
+                }}
+              >
+                Approve
+              </MenuItem>
+              <MenuItem
+                disabled={params.row.status !== "pending"}
+                onClick={() => {
+                  handleUpdateStatus(
+                    params.row.user_id,
+                    params.row.listing_id,
+                    "declined"
+                  );
+                  setMenuAnchorEl(null);
+                  setSelectedRowId(null);
+                }}
+              >
+                Decline
+              </MenuItem>
+              <MenuItem
+                disabled={params.row.status !== "approved"}
+                onClick={() => {
+                  handleUpdateStatus(
+                    params.row.user_id,
+                    params.row.listing_id,
+                    "completed"
+                  );
+                  setMenuAnchorEl(null);
+                  setSelectedRowId(null);
+                }}
+              >
+                Complete
+              </MenuItem>
+              <MenuItem
+                disabled={
+                  params.row.status !== "completed" ||
+                  params.row.trigger_mode === "auto" ||
+                  !!params.row.vc_issue_status ||
+                  params.row.status === "pending" ||
+                  params.row.status === "declined"
+                }
+                onClick={() => {
+                  handleIssueOCA(params.row.user_id, params.row.listing_id);
+                  setMenuAnchorEl(null);
+                  setSelectedRowId(null);
+                }}
+              >
+                Issue
+              </MenuItem>
+            </Menu>
+          </div>
+        );
+      },
     },
   ];
 

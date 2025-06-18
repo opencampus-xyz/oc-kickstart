@@ -27,18 +27,19 @@ export const EditVCProperties = ({ vcProperties }) => {
         defaultValue={vcProperties?.title}
         slotProps={{ inputLabel: { shrink: true } }}
       />
-      <FormControl fullWidth>
+      <FormControl fullWidth required>
         <InputLabel id="achievement-type-label">Achievement Type</InputLabel>
         <Select
           labelId="achievement-type-label"
           id="achievement-type-select"
           name="achievementType"
           label="Achievement Type"
+          required
           value={achievementType}
           onChange={(e) => setAchievementType(e.target.value)}
         >
           {ACHIEVEMENT_TYPES.map((achievementType) => (
-            <MenuItem value={achievementType}>{achievementType}</MenuItem>
+            <MenuItem key={achievementType} value={achievementType}>{achievementType}</MenuItem>
           ))}
         </Select>
       </FormControl>

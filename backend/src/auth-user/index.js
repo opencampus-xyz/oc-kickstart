@@ -51,7 +51,8 @@ router.get(
     const listingsQueryStr = `
     SELECT listings.*, 
     user_listings.status as sign_up_status, 
-    array_agg(tags.name) as tag_names, 
+    array_agg(tags.name) as tag_names,
+    array_agg(tags.id) as tag_ids,
     count(*) OVER() AS total
     FROM listings
     LEFT JOIN user_listings on listings.id = user_listings.listing_id
@@ -154,6 +155,21 @@ router.get(
       return { ...row, vc_issue_status: vc_count > 0 ? vcStatus : null };
     });
     res.json({ data: signupsWithVCStatus, total });
+  })
+);
+
+router.get(
+  "/listing-signup-status/:listingId",
+  asyncWrapper(async (req, res) => {
+    const { listingId } = req.params;
+    const signUpStatusQueryStr = `
+      select status as sign_up_status
+      from user_listings
+      where user_id = $1 and listing_id = $2
+      limit 1
+    `;
+    const result = await db.query(signUpStatusQueryStr, [req.user.id, listingId]);
+    res.json({ sign_up_status: result.rows[0]?.sign_up_status || null });
   })
 );
 

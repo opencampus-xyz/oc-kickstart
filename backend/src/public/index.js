@@ -80,7 +80,10 @@ router.get(
       searchQueryStr.push(`listings.name like '%${searchTitle}%'`);
     }
     const listingsQueryStr = `
-      select listings.*, array_agg(tags.name) as tag_names, count(*) OVER() AS total 
+      select listings.*, 
+      array_agg(tags.name) as tag_names,
+      array_agg(tags.id) as tag_ids,
+      count(*) OVER() AS total 
       from listings
       left join listing_tags on listing_tags.listing_id = listings.id
       left join tags on tags.id = listing_tags.tag_id
@@ -98,6 +101,34 @@ router.get(
       listings: result,
       total,
     });
+  })
+);
+
+router.get(
+  "/listings/:id",
+  asyncWrapper(async (req, res) => {
+    const { id } = req.params;
+    const listingQueryStr = `
+      select listings.*, 
+      array_agg(tags.name) as tag_names,
+      array_agg(tags.id) as tag_ids
+      from listings
+      left join listing_tags on listing_tags.listing_id = listings.id
+      left join tags on tags.id = listing_tags.tag_id
+      where listings.id = $1 and listings.status = 'active' and tags.archived_ts is null
+      group by listings.id
+    `;
+    const result = await db.query(listingQueryStr, [id]);
+    
+    if (!result?.rows?.[0]) {
+      res.status(404).json({ 
+        error: 'Listing not found',
+        message: 'The requested listing could not be found or is not active'
+      });
+      return;
+    }
+    
+    res.json(result.rows[0]);
   })
 );
 

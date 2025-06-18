@@ -16,10 +16,11 @@ class VCIssuer {
 
   async issueVC(job) {
     const { id: jobId, retry_count, payload } = job;
-
     let result = {};
+    let response;
+
     try {
-      const response = await fetch(this.ocaIssuanceUrl, {
+      response = await fetch(this.ocaIssuanceUrl, {
         method: "POST",
         body: JSON.stringify(payload),
         headers: {
@@ -32,11 +33,13 @@ class VCIssuer {
       result.status_text = response.statusText;
       result.data = await response.json();
     } catch (error) {
+      console.error('Error issuing VC:', error);
       result.error = error.message;
+      result.status_code = 500;
     }
 
+    const client = await db.connect();
     try {
-      const client = await db.connect();
       await client.query("BEGIN");
       await client.query(
         "INSERT INTO vc_issue_job_logs (job_id, payload, response) VALUES ($1, $2, $3)",
@@ -69,12 +72,14 @@ class VCIssuer {
 
       await client.query("COMMIT");
     } catch (error) {
+      console.error('Error updating job status:', error);
       await client.query("ROLLBACK");
+      throw error;
     } finally {
       await client.release();
     }
 
-    return response.json();
+    return result;
   }
 
   async run() {
