@@ -28,7 +28,6 @@ const DB_NAME = 'oc_generics_db';
 const DB_VERSION = 2;
 
 export function initDatabase() {
-    // Only run on client side
     if (typeof window === 'undefined') {
         return Promise.resolve(null);
     }
@@ -123,7 +122,7 @@ export function addTimestamps(obj) {
 export function createUserDocument(userData) {
     return addTimestamps({
         ...userData,
-        id: crypto.randomUUID(), // Generate a unique ID
+        id: crypto.randomUUID(),
         signups: [], // Array of { listing_id, status, created_ts }
         profile: userData.profile || {},
         search_text: `${userData.name || ''} ${userData.email || ''}`.trim()
@@ -133,8 +132,8 @@ export function createUserDocument(userData) {
 export function createListingDocument(listingData) {
     return addTimestamps({
         ...listingData,
-        id: crypto.randomUUID(), // Generate a unique ID
-        tags: [], // Array of tag_id
+        id: crypto.randomUUID(),
+        tags: listingData.tags || [],
         signups: [], // Array of [user_id, status]
         vc_properties: listingData.vc_properties || {},
         status: listingData.status || ListingStatus.DRAFT,
@@ -148,7 +147,7 @@ export function createListingDocument(listingData) {
 export function createTagDocument(tagData) {
     return addTimestamps({
         ...tagData,
-        id: crypto.randomUUID(), // Generate a unique ID
+        id: crypto.randomUUID(),
         listings: [], // Array of listing_id
         vc_properties: tagData.vc_properties || {},
         can_issue_oca: tagData.can_issue_oca || false,

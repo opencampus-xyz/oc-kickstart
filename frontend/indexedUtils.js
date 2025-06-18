@@ -136,6 +136,12 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 response = await dbService.updateUsername(ocId, body.username);
                 break;
 
+            case (endpoint.match(/^\/auth-user\/listing-signup-status\/([^\/]+)$/) || {}).input: {
+                const listingId = endpoint.split('/').pop();
+                response = await dbService.getUserListingStatus(ocId, listingId);
+                break;
+            }
+
             case '/auth-user/listings':
                 const userForListings = await dbService.getUserByOCId(ocId);
                 response = await dbService.getListings({
@@ -358,6 +364,12 @@ export const publicFetch = async (url, options = {}) => {
                     const tagsResponse = await dbService.getTags();
                     response = tagsResponse.data;
                     break;
+
+                case (endpoint.match(/^\/listings\/([^\/]+)$/) || {}).input: {
+                    const id = endpoint.split('/').pop();
+                    response = await dbService.getPublicListingById(id);
+                    break;
+                }
 
                 default:
                     throw new Error(`Unsupported public endpoint: ${endpoint}`);

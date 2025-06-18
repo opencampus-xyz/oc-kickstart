@@ -385,12 +385,63 @@ export class DBService {
         return signup;
     }
 
+    async getUserListingStatus(ocId, listingId) {
+        const user = await this.getUserByOCId(ocId);
+        if (!user?.user) {
+            return { sign_up_status: null };
+        }
+
+        const tx = this.IndexedDBHelper.createTransaction(['user_listings'], 'readonly');
+        const userListingsStore = this.IndexedDBHelper.getStore(tx, 'user_listings');
+        
+        const signup = await this.IndexedDBHelper.get(userListingsStore, [user.user.id, listingId]);
+        
+        return { sign_up_status: signup ? signup.status : null };
+    }
+
     // ===== backend/src/admin/index.js endpoints =====
     async getListingById(id) {
         const tx = this.IndexedDBHelper.createTransaction(['listings'], 'readonly');
         const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
         
         return await this.IndexedDBHelper.get(listingStore, id);
+    }
+
+    // ===== backend/src/public/index.js endpoints =====
+    async getPublicListingById(id) {
+        const tx = this.IndexedDBHelper.createTransaction(['listings', 'tags'], 'readonly');
+        const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        const tagStore = this.IndexedDBHelper.getStore(tx, 'tags');
+        
+        const listing = await this.IndexedDBHelper.get(listingStore, id);
+        
+        if (!listing || listing.status !== 'active') {
+            throw new Error('Listing not found');
+        }
+        
+        // Get tag names and IDs for the listing
+        const tagNames = [];
+        const tagIds = [];
+        
+        if (listing.tags && listing.tags.length > 0) {
+            for (const tagId of listing.tags) {
+                try {
+                    const tag = await this.IndexedDBHelper.get(tagStore, tagId);
+                    if (tag && !tag.archived_ts) {
+                        tagNames.push(tag.name);
+                        tagIds.push(tag.id);
+                    }
+                } catch (error) {
+                    console.warn(`Failed to fetch tag ${tagId}:`, error);
+                }
+            }
+        }
+        
+        return {
+            ...listing,
+            tag_names: tagNames,
+            tag_ids: tagIds
+        };
     }
 
     async createListing(listingData) {
