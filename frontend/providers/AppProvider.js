@@ -1,5 +1,7 @@
 import { Loading } from "@/components/common/Loading";
+import { DemoModal } from "@/components/demo/DemoModal";
 import { config } from "@/config";
+import dbService from "@/db/indexeddb/dbService";
 import {
   Assignment,
   EmojiEvents,
@@ -11,8 +13,9 @@ import {
   Person,
   Settings,
   Tune,
+  Help as HelpIcon,
 } from "@mui/icons-material";
-import { Button } from "@mui/material";
+import { Button, IconButton, Tooltip } from "@mui/material";
 import { createTheme } from "@mui/material/styles";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { DashboardLayout } from "@toolpad/core";
@@ -21,7 +24,7 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { useUser } from "./UserProvider";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { getDBMode } from "@/utils";
 
 const theme = createTheme({
@@ -55,6 +58,64 @@ export const AppProvider = ({ children }) => {
   const { authState } = useOCAuth();
   const { isRegisteredUser, isAdmin, isMasterAdmin, user } = useUser();
   const [isDemoUser, setIsDemoUser] = useState(getDBMode() === 'indexeddb' ? true : false);
+  const [showDemoModal, setShowDemoModal] = useState(false);
+
+  useEffect(() => {
+    const checkAdminConfigs = async () => {
+      if (isDemoUser) {
+        try {
+        // DEMO MODE: we are directly checking the admin configs in the indexeddb without going through fetch
+        // This would not be possible in production mode
+          const adminConfig = await dbService.adminConfig();
+          
+          if (!adminConfig || !adminConfig.admin_ocids || adminConfig.admin_ocids.length === 0) {
+            setShowDemoModal(true);
+          }
+        } catch (error) {
+          console.error('Error checking admin configs:', error);
+          setShowDemoModal(true);
+        }
+      }
+    };
+
+    checkAdminConfigs();
+  }, [isDemoUser]);
+
+  const handleCloseDemoModal = () => {
+    setShowDemoModal(false);
+  };
+
+  const handleHelpClick = () => setShowDemoModal(true);
+
+  // Custom logo component with help button
+  const CustomLogo = () => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <Image
+        src={config.logoUrl}
+        width={20}
+        height={20}
+        alt={config.appTitle}
+      />
+      {isDemoUser && (
+        <Tooltip title="Demo Information & Help">
+          <IconButton
+            onClick={handleHelpClick}
+            size="small"
+            sx={{ 
+              color: 'secondary.light',
+              padding: '2px',
+              '&:hover': {
+                backgroundColor: 'secondary.light',
+                color: 'white'
+              }
+            }}
+          >
+            <HelpIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+    </div>
+  );
 
   const adminNavigation = [
     {
@@ -113,9 +174,11 @@ export const AppProvider = ({ children }) => {
   const toolbarActions = () => {
     const router = useRouter();
     if (authState?.isAuthenticated) return null;
-    const onClick = () => router.push("/login");
+    
+    const handleLoginClick = () => router.push("/login");
+    
     return (
-      <Button variant="contained" onClick={onClick}>
+      <Button variant="contained" onClick={handleLoginClick}>
         Login / Sign up
       </Button>
     );
@@ -129,14 +192,7 @@ export const AppProvider = ({ children }) => {
         branding={{
           homeUrl: "/home",
           title: config.appTitle,
-          logo: (
-            <Image
-              src={config.logoUrl}
-              width={20}
-              height={20}
-              alt={config.appTitle}
-            />
-          ),
+          logo: <CustomLogo />,
         }}
       >
         <DashboardLayout
@@ -149,6 +205,11 @@ export const AppProvider = ({ children }) => {
           {children}
         </DashboardLayout>
       </NextAppProvider>
+      
+      <DemoModal
+        open={showDemoModal}
+        onClose={handleCloseDemoModal}
+      />
     </React.Suspense>
   );
 };
