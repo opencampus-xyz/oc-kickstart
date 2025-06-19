@@ -106,7 +106,6 @@ function createObjectStores(db) {
     // Admin configs store
     const admin_configsStore = db.createObjectStore('admin_configs', { keyPath: 'id' });
     admin_configsStore.createIndex('admin_ocids', 'admin_ocids', { unique: false });
-    admin_configsStore.createIndex('isMasterAdmin', 'isMasterAdmin', { unique: true });
 
 }
 

@@ -200,7 +200,7 @@ export class DBService {
         const adminConfig = await this.IndexedDBHelper.get(adminStore, 'admin_config');
 
         const isAdmin = adminConfig?.admin_ocids?.includes(ocId) || false;
-        const isMasterAdmin = adminConfig?.isMasterAdmin === true && adminConfig?.admin_ocids?.includes(ocId);
+        const isMasterAdmin = await this.isMasterAdmin(ocId);
 
         const userData = {
             id: user.id,
@@ -1083,6 +1083,34 @@ export class DBService {
         return true;
     }
 
+    // ===== Master Admin Management (localStorage) =====
+    _getMasterAdminFromStorage() {
+        try {
+            const masterAdmin = localStorage.getItem('master_admin_ocid');
+            return masterAdmin || null;
+        } catch (error) {
+            console.error('Failed to get master admin from localStorage:', error);
+            return null;
+        }
+    }
+
+    _setMasterAdminToStorage(ocId) {
+        try {
+            localStorage.setItem('master_admin_ocid', ocId);
+        } catch (error) {
+            console.error('Failed to set master admin in localStorage:', error);
+            throw new Error('Failed to set master admin');
+        }
+    }
+
+    _clearMasterAdminFromStorage() {
+        try {
+            localStorage.removeItem('master_admin_ocid');
+        } catch (error) {
+            console.error('Failed to clear master admin from localStorage:', error);
+        }
+    }
+
     // ===== Admin Management =====
     async adminConfig(adminOCIDs = null) {
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], adminOCIDs !== null ? 'readwrite' : 'readonly');
@@ -1091,44 +1119,69 @@ export class DBService {
         const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
         if (adminOCIDs !== null) {
+            // Update admin list in IndexedDB
             const config = createAdminConfigsDocument({
                 admin_ocids: adminOCIDs,
-                isMasterAdmin: false
+                isMasterAdmin: false // We don't use this field anymore
             });
             await this.IndexedDBHelper.put(store, config);
             return { message: "Admin configs updated successfully" };
         } else {
-            return { admin_ocids: adminConfig?.admin_ocids || [] };
+            // Return both master admin and admin list
+            const masterAdminOCId = this._getMasterAdminFromStorage();
+            return { 
+                admin_ocids: adminConfig?.admin_ocids || [],
+                master_admin_ocid: masterAdminOCId,
+                isMasterAdmin: !!masterAdminOCId
+            };
         }
     }
 
     async setMasterAdmin(ocId) {
-        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
-        const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
-
-        const existingAdminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
+        // Check if master admin already exists in localStorage
+        const existingMasterAdmin = this._getMasterAdminFromStorage();
         
-        if (existingAdminConfig?.isMasterAdmin === true) {
+        if (existingMasterAdmin) {
             throw new Error("A master admin already exists");
         }
 
-        const adminConfig = createAdminConfigsDocument({
-            admin_ocids: [ocId],
-            isMasterAdmin: true
-        });
-
-        await this.IndexedDBHelper.put(store, adminConfig);
+        // Set master admin in localStorage
+        this._setMasterAdminToStorage(ocId);
         
-        return adminConfig;
-    }
-
-    async isMasterAdmin(ocId) {
-        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readonly');
+        // Also ensure the user is in the admin list in IndexedDB
+        const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
         
         const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
+        if (!adminConfig) {
+            // Create new admin config if it doesn't exist
+            const newConfig = createAdminConfigsDocument({
+                admin_ocids: [ocId],
+                isMasterAdmin: false // We don't use this field anymore, but keep for compatibility
+            });
+            await this.IndexedDBHelper.put(store, newConfig);
+        } else if (!adminConfig.admin_ocids.includes(ocId)) {
+            // Add to admin list if not already there
+            adminConfig.admin_ocids.push(ocId);
+            adminConfig.last_modified_ts = new Date().toISOString();
+            await this.IndexedDBHelper.put(store, adminConfig);
+        }
         
-        return adminConfig?.isMasterAdmin === true && adminConfig?.admin_ocids?.includes(ocId);
+        return { 
+            admin_ocids: [ocId],
+            isMasterAdmin: true,
+            master_admin_ocid: ocId
+        };
+    }
+
+    async isMasterAdmin(ocId) {
+        const masterAdminOCId = this._getMasterAdminFromStorage();
+        
+        if (!masterAdminOCId) {
+            return false;
+        }
+        
+        return masterAdminOCId === ocId;
     }
 
     async isAdmin(ocId) {

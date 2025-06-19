@@ -30,6 +30,10 @@ export default function ChangePermissions() {
         body: JSON.stringify({ ocId: user.oc_id }),
       });
     } else if (newPermission === "admin") {
+      if (isMasterAdmin) {
+        localStorage.removeItem('master_admin_ocid');
+      }
+      
       const response = await fetchWithAuth("/master-admin/admin-configs");
       const data = await response.json();
       const currentAdminOCIDs = data?.admin_ocids || [];
@@ -45,17 +49,21 @@ export default function ChangePermissions() {
         });
       }
     } else if (newPermission === "registered-user") {
+      if (isMasterAdmin) {
+        localStorage.removeItem('master_admin_ocid');
+      }
+      
       const response = await fetchWithAuth("/master-admin/admin-configs");
       const data = await response.json();
       const currentAdminOCIDs = data?.admin_ocids || [];
       const filteredOCIDs = currentAdminOCIDs.filter(ocid => ocid !== user.oc_id);
-      setAdminOCIDs(filteredOCIDs.join(","));
+      
       await fetchWithAuth("/master-admin/admin-configs", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ adminOCIDs: adminOCIDs }),
+        body: JSON.stringify({ adminOCIDs: filteredOCIDs.join(",") }),
       });
     }
     window.location.reload();
