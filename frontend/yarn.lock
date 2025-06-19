@@ -2257,13 +2257,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"error@npm:^10.4.0":
-  version: 10.4.0
-  resolution: "error@npm:10.4.0"
-  checksum: 10c0/96b7d96ace34e93d64a25041dd09312ca67f2ae49f37efa452dc95c908383f94766c854b6a86a62abca65e34a98236a106a76856a69caaf75e2594ab93e757b7
-  languageName: node
-  linkType: hard
-
 "es-abstract@npm:^1.17.5, es-abstract@npm:^1.23.2, es-abstract@npm:^1.23.3, es-abstract@npm:^1.23.5, es-abstract@npm:^1.23.6, es-abstract@npm:^1.23.9":
   version: 1.23.9
   resolution: "es-abstract@npm:1.23.9"
@@ -2874,7 +2867,6 @@ __metadata:
     "@opencampus/ocid-connect-js": "npm:^2.0.3"
     "@toolpad/core": "npm:^0.14.0"
     date-fns: "npm:^4.1.0"
-    error: "npm:^10.4.0"
     eslint: "npm:^9"
     eslint-config-next: "npm:15.3.0"
     install: "npm:^0.13.0"

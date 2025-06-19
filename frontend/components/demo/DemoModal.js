@@ -36,7 +36,8 @@ export const DemoModal = ({ open, onClose }) => {
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={() => {}}
+      disableEscapeKeyDown={true}
       fullWidth
       maxWidth="md"
       PaperProps={{

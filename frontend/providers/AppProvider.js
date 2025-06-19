@@ -61,13 +61,19 @@ export const AppProvider = ({ children }) => {
   const [showDemoModal, setShowDemoModal] = useState(false);
 
   useEffect(() => {
+    if (isDemoUser) {
+      const acknowledged = localStorage.getItem('demo_modal_acknowledged');
+      if (!acknowledged) {
+        setShowDemoModal(true);
+      }
+    }
+  }, [isDemoUser]);
+
+  useEffect(() => {
     const checkAdminConfigs = async () => {
       if (isDemoUser) {
         try {
-        // DEMO MODE: we are directly checking the admin configs in the indexeddb without going through fetch
-        // This would not be possible in production mode
           const adminConfig = await dbService.adminConfig();
-          
           if (!adminConfig || !adminConfig.admin_ocids || adminConfig.admin_ocids.length === 0) {
             setShowDemoModal(true);
           }
@@ -77,11 +83,11 @@ export const AppProvider = ({ children }) => {
         }
       }
     };
-
     checkAdminConfigs();
   }, [isDemoUser]);
 
   const handleCloseDemoModal = () => {
+    localStorage.setItem('demo_modal_acknowledged', 'true');
     setShowDemoModal(false);
   };
 
