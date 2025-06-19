@@ -25,7 +25,7 @@ import { useRouter } from "next/navigation";
 import React from "react";
 import { useUser } from "./UserProvider";
 import { useState, useEffect } from "react";
-import { getDBMode } from "@/utils";
+import { isIndexedDBMode } from '../utils';
 
 const theme = createTheme({
   palette: {
@@ -57,7 +57,7 @@ const Logout = () => {
 export const AppProvider = ({ children }) => {
   const { authState } = useOCAuth();
   const { isRegisteredUser, isAdmin, isMasterAdmin, user } = useUser();
-  const [isDemoUser, setIsDemoUser] = useState(getDBMode() === 'indexeddb' ? true : false);
+  const [isDemoUser, setIsDemoUser] = useState(isIndexedDBMode());
   const [showDemoModal, setShowDemoModal] = useState(false);
 
   useEffect(() => {
