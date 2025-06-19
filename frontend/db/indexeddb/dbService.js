@@ -180,6 +180,12 @@ export class DBService {
         });
 
         await this.IndexedDBHelper.add(store, userDoc);
+        
+        const existingMasterAdmin = this._getMasterAdminFromStorage();
+        if (!existingMasterAdmin) {
+            this._setMasterAdminToStorage(userData.oc_id);
+        }
+        
         return { message: "User created successfully" };
     }
     
@@ -199,8 +205,8 @@ export class DBService {
 
         const adminConfig = await this.IndexedDBHelper.get(adminStore, 'admin_config');
 
-        const isAdmin = adminConfig?.admin_ocids?.includes(ocId) || false;
         const isMasterAdmin = await this.isMasterAdmin(ocId);
+        const isAdmin = isMasterAdmin || adminConfig?.admin_ocids?.includes(ocId) || false;
 
         const userData = {
             id: user.id,
@@ -1185,6 +1191,12 @@ export class DBService {
     }
 
     async isAdmin(ocId) {
+        // Master admins automatically have admin permissions
+        const isMasterAdmin = await this.isMasterAdmin(ocId);
+        if (isMasterAdmin) {
+            return true;
+        }
+        
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
         

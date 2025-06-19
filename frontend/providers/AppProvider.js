@@ -11,7 +11,6 @@ import {
   Logout as LogoutIcon,
   People,
   Person,
-  Settings,
   Tune,
   Help as HelpIcon,
 } from "@mui/icons-material";
@@ -148,16 +147,11 @@ export const AppProvider = ({ children }) => {
     { kind: "header", title: "Master Admin" },
     { segment: "admin-configs", title: "Admin Configs", icon: <Tune /> },
   ];
-  const demoNavigation = [
-    { kind: "header", title: "Demo" },
-    { segment: "demo/change-permissions", title: "Change Permissions", icon: <Settings /> },
-  ];
 
   const navigation = [
     ...(isRegisteredUser ? userNavigation() : unregisteredUserNavigation()),
     ...(isAdmin ? adminNavigation : []),
     ...(isMasterAdmin ? masterAdminNavigation : []),
-    ...(isDemoUser ? demoNavigation : []),
   ];
 
   const toolbarActions = () => {
