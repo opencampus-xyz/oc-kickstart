@@ -25,7 +25,6 @@ export default function Signup() {
   const isDemoMode = isIndexedDBMode();
 
   useEffect(() => {
-    // Only redirect if we're not waiting to show the modal
     if (isRegisteredUser && !isWaitingForModal) {
       router.push("/user-dashboard/profile");
     }
@@ -75,25 +74,19 @@ export default function Signup() {
         throw new Error(data.error?.message || "Failed to sign up");
       }
 
-      // Only check for first user modal in demo mode
       if (isDemoMode) {
-        // Set waiting state to prevent automatic redirect
         setIsWaitingForModal(true);
 
-        // After successful signup, get updated user data
         await getUser();
         
-        // Check if user is now a master admin (indicating they're the first user)
         const updatedUserResponse = await fetchWithAuth("/user", {
           method: "GET",
         });
         const updatedUserData = await updatedUserResponse.json();
         
         if (updatedUserData.isMasterAdmin) {
-          // This is the first user, show the modal
           setShowFirstUserModal(true);
         } else {
-          // Regular user, proceed with normal flow
           setIsWaitingForModal(false);
           enqueueSnackbar("Signed up successfully", {
             variant: "success",
