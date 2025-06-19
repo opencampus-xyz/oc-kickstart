@@ -33,24 +33,17 @@ export default function ChangePermissions() {
       const response = await fetchWithAuth("/master-admin/admin-configs");
       const data = await response.json();
       const currentAdminOCIDs = data?.admin_ocids || [];
-      const filteredOCIDs = currentAdminOCIDs.filter(ocid => ocid !== user.oc_id);
-
-      await fetchWithAuth("/master-admin/admin-configs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ adminOCIDs: filteredOCIDs.join(",") }),
-      });
-
-      const newAdminOCIDs = [...filteredOCIDs, user.oc_id];
-      await fetchWithAuth("/master-admin/admin-configs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ adminOCIDs: newAdminOCIDs.join(",") }),
-      });
+      
+      if (!currentAdminOCIDs.includes(user.oc_id)) {
+        const newAdminOCIDs = [...currentAdminOCIDs, user.oc_id];
+        await fetchWithAuth("/master-admin/admin-configs", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ adminOCIDs: newAdminOCIDs.join(",") }),
+        });
+      }
     } else if (newPermission === "registered-user") {
       const response = await fetchWithAuth("/master-admin/admin-configs");
       const data = await response.json();
