@@ -56,7 +56,7 @@ export default function AdminConfigs() {
         <div>If you want to add other admins here</div>
         <TextField
           label="Admin OCIDs"
-          helperText="Enter OCIDs separated by commas,"
+          helperText="Enter OCIDs separated by commas"
           value={adminOCIDs}
           onChange={(e) => setAdminOCIDs(e.target.value)}
         />
