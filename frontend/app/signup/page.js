@@ -8,7 +8,7 @@ import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
-import { isIndexedDBMode } from "@/utils";
+import { isDemoMode } from "@/utils";
 import "../globals.css";
 
 export default function Signup() {
@@ -22,7 +22,7 @@ export default function Signup() {
   const user = useUser();
   const { getUser, isRegisteredUser } = user;
   const stateFromSDK = ocAuth?.getStateParameter();
-  const isDemoMode = isIndexedDBMode();
+  const demoMode = isDemoMode();
 
   useEffect(() => {
     if (isRegisteredUser && !isWaitingForModal) {
@@ -74,7 +74,7 @@ export default function Signup() {
         throw new Error(data.error?.message || "Failed to sign up");
       }
 
-      if (isDemoMode) {
+      if (demoMode) {
         setIsWaitingForModal(true);
 
         await getUser();
@@ -149,7 +149,7 @@ export default function Signup() {
       </Button>
 
       {/* Only render the modal in demo mode */}
-      {isDemoMode && (
+      {demoMode && (
         <FirstUserModal 
           open={showFirstUserModal} 
           onClose={handleModalClose}

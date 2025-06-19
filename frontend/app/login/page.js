@@ -4,7 +4,7 @@ import { Alert, Divider, TextField } from "@mui/material";
 import { LoginButton, useOCAuth } from "@opencampus/ocid-connect-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { isIndexedDBMode } from "@/utils";
+import { isDemoMode } from "@/utils";
 import styles from "./login.module.css";
 
 const validateEmail = (email) => {
@@ -26,7 +26,7 @@ export default function Login() {
   const { authState } = useOCAuth();
   const params = useSearchParams();
   const originUrl = params.get("originUrl") ? decodeURIComponent(params.get("originUrl")) : null;
-  const isDemoMode = isIndexedDBMode();
+  const demoMode = isDemoMode();
 
   useEffect(() => {
     if (isInitialized && authState?.isAuthenticated) {
@@ -35,7 +35,7 @@ export default function Login() {
   }, [isInitialized, authState, originUrl]);
 
   useEffect(() => {
-    if (isDemoMode) {
+    if (demoMode) {
       const masterAdminOcid = localStorage.getItem('master_admin_ocid');
       if (!masterAdminOcid) {
         const randomEmail = generateRandomEmail(); 
@@ -45,10 +45,10 @@ export default function Login() {
         setIsEmailLocked(false);
       }
     }
-  }, [isDemoMode]);
+  }, [demoMode]);
 
   useEffect(() => {
-    if (isDemoMode && !isEmailLocked) {
+    if (demoMode && !isEmailLocked) {
       const checkMasterAdmin = () => {
         const masterAdminOcid = localStorage.getItem('master_admin_ocid');
         if (!masterAdminOcid && !isEmailLocked) {
@@ -64,13 +64,13 @@ export default function Login() {
       
       return () => clearTimeout(timeoutId);
     }
-  }, [isDemoMode, isEmailLocked]);
+  }, [demoMode, isEmailLocked]);
 
   const isInvalidLogin = params.get("invalidLogin") === "true";
   const isAdminLogin = params.get("adminLogin") === "true";
 
   const onChange = (e) => {
-    if (isDemoMode && isEmailLocked) {
+    if (demoMode && isEmailLocked) {
       return;
     }
 
@@ -119,7 +119,7 @@ export default function Login() {
           sx={{ minWidth: "300px" }}
           error={!!error}
           helperText={error}
-          disabled={isDemoMode && isEmailLocked}
+          disabled={demoMode && isEmailLocked}
         />
         <LoginButton state={{ email, path: "signup", originUrl }} />
       </div>
