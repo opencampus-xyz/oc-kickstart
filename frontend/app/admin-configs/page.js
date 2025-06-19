@@ -52,6 +52,8 @@ export default function AdminConfigs() {
   return (
     <ProtectedRoute>
       <div className="pageContainer">
+        <div>You are Master Admin, so you are already an admin</div>
+        <div>If you want to add other admins here</div>
         <TextField
           label="Admin OCIDs"
           helperText="Enter OCIDs separated by commas"
