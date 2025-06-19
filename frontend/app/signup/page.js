@@ -1,5 +1,6 @@
 "use client";
 import { Loading } from "@/components/common/Loading";
+import { FirstUserModal } from "@/components/demo/FirstUserModal";
 import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
 import { Button, TextField } from "@mui/material";
@@ -7,23 +8,28 @@ import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
+import { isIndexedDBMode } from "@/utils";
 import "../globals.css";
 
 export default function Signup() {
   const [name, setName] = useState("");
   const [error, setError] = useState();
+  const [showFirstUserModal, setShowFirstUserModal] = useState(false);
+  const [isWaitingForModal, setIsWaitingForModal] = useState(false);
   const { ocAuth, authState } = useOCAuth();
   const router = useRouter();
   const fetchWithAuth = useAuthenticatedFetch();
   const user = useUser();
   const { getUser, isRegisteredUser } = user;
   const stateFromSDK = ocAuth?.getStateParameter();
+  const isDemoMode = isIndexedDBMode();
 
   useEffect(() => {
-    if (isRegisteredUser) {
+    // Only redirect if we're not waiting to show the modal
+    if (isRegisteredUser && !isWaitingForModal) {
       router.push("/user-dashboard/profile");
     }
-  }, [isRegisteredUser, router]);
+  }, [isRegisteredUser, isWaitingForModal, router]);
 
   if (!authState.isAuthenticated) return <Loading />;
   if (!stateFromSDK) return null;
@@ -69,22 +75,69 @@ export default function Signup() {
         throw new Error(data.error?.message || "Failed to sign up");
       }
 
-      await getUser();
-      enqueueSnackbar("Signed up successfully", {
-        variant: "success",
-      });
-      
-      if (originUrl) {
-        router.push(originUrl);
+      // Only check for first user modal in demo mode
+      if (isDemoMode) {
+        // Set waiting state to prevent automatic redirect
+        setIsWaitingForModal(true);
+
+        // After successful signup, get updated user data
+        await getUser();
+        
+        // Check if user is now a master admin (indicating they're the first user)
+        const updatedUserResponse = await fetchWithAuth("/user", {
+          method: "GET",
+        });
+        const updatedUserData = await updatedUserResponse.json();
+        
+        if (updatedUserData.isMasterAdmin) {
+          // This is the first user, show the modal
+          setShowFirstUserModal(true);
+        } else {
+          // Regular user, proceed with normal flow
+          setIsWaitingForModal(false);
+          enqueueSnackbar("Signed up successfully", {
+            variant: "success",
+          });
+          
+          if (originUrl) {
+            router.push(originUrl);
+          } else {
+            router.push("/user-dashboard/profile");
+          }
+        }
       } else {
-        router.push("/user-dashboard/profile");
+        await getUser();
+        enqueueSnackbar("Signed up successfully", {
+          variant: "success",
+        });
+        
+        if (originUrl) {
+          router.push(originUrl);
+        } else {
+          router.push("/user-dashboard/profile");
+        }
       }
     } catch (error) {
       console.error("Signup error:", error);
       setError(error.message);
+      setIsWaitingForModal(false);
       enqueueSnackbar(error.message || "Error signing up", {
         variant: "error",
       });
+    }
+  };
+
+  const handleModalClose = async () => {
+    setShowFirstUserModal(false);
+    setIsWaitingForModal(false);
+    enqueueSnackbar("Signed up successfully", {
+      variant: "success",
+    });
+    
+    if (originUrl) {
+      router.push(originUrl);
+    } else {
+      router.push("/user-dashboard/profile");
     }
   };
 
@@ -101,6 +154,14 @@ export default function Signup() {
       <Button variant="contained" onClick={handleSignup}>
         Signup
       </Button>
+
+      {/* Only render the modal in demo mode */}
+      {isDemoMode && (
+        <FirstUserModal 
+          open={showFirstUserModal} 
+          onClose={handleModalClose}
+        />
+      )}
     </div>
   );
 }
