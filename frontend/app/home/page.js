@@ -107,9 +107,7 @@ export default function Home() {
       const tagIds = tagsParam ? tagsParam.split(',') : [];
       const activeTagIds = tagIds.filter(id => tagsKeyById[id]);
       
-      if (JSON.stringify(activeTagIds.sort()) !== JSON.stringify(searchTags.sort())) {
-        setSearchTags(activeTagIds);
-      }
+      setSearchTags(activeTagIds);
       
       if (activeTagIds.length !== tagIds.length) {
         const params = new URLSearchParams(window.location.search);
