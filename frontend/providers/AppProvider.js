@@ -69,23 +69,6 @@ export const AppProvider = ({ children }) => {
     }
   }, [isDemoUser]);
 
-  useEffect(() => {
-    const checkAdminConfigs = async () => {
-      if (isDemoUser) {
-        try {
-          const adminConfig = await dbService.adminConfig();
-          if (!adminConfig || !adminConfig.admin_ocids || adminConfig.admin_ocids.length === 0) {
-            setShowDemoModal(true);
-          }
-        } catch (error) {
-          console.error('Error checking admin configs:', error);
-          setShowDemoModal(true);
-        }
-      }
-    };
-    checkAdminConfigs();
-  }, [isDemoUser]);
-
   const handleCloseDemoModal = () => {
     localStorage.setItem('demo_modal_acknowledged', 'true');
     setShowDemoModal(false);
