@@ -14,7 +14,7 @@ const validateEmail = (email) => {
 
 const generateRandomEmail = () => {
   const randomString = Math.random().toString(36).substring(2, 10);
-  return `${randomString}@ocgenerictest.com`;
+  return `${randomString}@ockickstarttest.com`;
 };
 
 export default function Login() {
