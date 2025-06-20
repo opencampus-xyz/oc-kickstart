@@ -4,12 +4,9 @@ import {
     createUserDocument, 
     createListingDocument, 
     createTagDocument, 
-    createAdminConfigsDocument,
-    UserListingStatus, 
-    ListingStatus, 
-    ListingTriggerMode,
-    VcIssueJobStatus
+    createAdminConfigsDocument
 } from '@/db/indexeddb/DBsetup';
+import { UserListingStatus, ListingStatus, ListingTriggerMode, VcIssueJobStatus } from '@/constants';
 import VCIssuerService from './vc-issuer.js';
 
 export class DBService {
@@ -64,41 +61,9 @@ export class DBService {
                 });
             },
 
-            delete: (store, key) => {
-                return new Promise((resolve, reject) => {
-                    const request = store.delete(key);
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
-            },
-
             getAll: (store, query = null, count = null) => {
                 return new Promise((resolve, reject) => {
                     const request = query ? store.getAll(query, count) : store.getAll();
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
-            },
-
-            getAllByIndex: (index, key, count = null) => {
-                return new Promise((resolve, reject) => {
-                    const request = count ? index.getAll(key, count) : index.getAll(key);
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
-            },
-
-            count: (store, query = null) => {
-                return new Promise((resolve, reject) => {
-                    const request = query ? store.count(query) : store.count();
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
-            },
-
-            countByIndex: (index, key) => {
-                return new Promise((resolve, reject) => {
-                    const request = index.count(key);
                     request.onsuccess = () => resolve(request.result);
                     request.onerror = () => reject(request.error);
                 });
@@ -109,24 +74,6 @@ export class DBService {
                     const request = query ? store.openCursor(query, direction) : store.openCursor();
                     request.onsuccess = () => resolve(request.result);
                     request.onerror = () => reject(request.error);
-                });
-            },
-
-            openCursorByIndex: (index, query = null, direction = 'next') => {
-                return new Promise((resolve, reject) => {
-                    const request = query ? index.openCursor(query, direction) : index.openCursor();
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = () => reject(request.error);
-                });
-            },
-
-            handleRequest: (request, errorMessage = 'Database operation failed') => {
-                return new Promise((resolve, reject) => {
-                    request.onsuccess = () => resolve(request.result);
-                    request.onerror = (event) => {
-                        console.error(errorMessage, event.target.error);
-                        reject(event.target.error);
-                    };
                 });
             }
         };
@@ -295,11 +242,11 @@ export class DBService {
                                         const vcSuccessCount = vcJobs.filter(job => job.status === VcIssueJobStatus.SUCCESS).length;
                                         
                                         if (vcPendingCount > 0) {
-                                            vcStatus = 'pending';
+                                            vcStatus = VcIssueJobStatus.PENDING;
                                         } else if (vcFailedCount > 0) {
-                                            vcStatus = 'failed';
+                                            vcStatus = VcIssueJobStatus.FAILED;
                                         } else if (vcSuccessCount > 0) {
-                                            vcStatus = 'success';
+                                            vcStatus = VcIssueJobStatus.SUCCESS;
                                         }
                                     }
 
@@ -421,7 +368,7 @@ export class DBService {
         
         const listing = await this.IndexedDBHelper.get(listingStore, id);
         
-        if (!listing || listing.status !== 'active') {
+        if (!listing || listing.status !== ListingStatus.ACTIVE) {
             throw new Error('Listing not found');
         }
         
@@ -816,7 +763,7 @@ export class DBService {
                                         if (signupCursor) {
                                             const signup = signupCursor.value;
                                             if (signup.listing_id === listing.id && 
-                                                (signup.status === 'approved' || signup.status === 'pending' || signup.status === 'completed')) {
+                                                (signup.status === UserListingStatus.APPROVED || signup.status === UserListingStatus.PENDING || signup.status === UserListingStatus.COMPLETED)) {
                                                 count++;
                                             }
                                             signupCursor.continue();
@@ -836,9 +783,9 @@ export class DBService {
                                     fallbackCount = listing.signups.filter((signup) => {
                                         if (Array.isArray(signup) && signup.length >= 2) {
                                             const status = signup[1];
-                                            return status === 'approved' || status === 'pending' || status === 'completed';
+                                            return status === UserListingStatus.APPROVED || status === UserListingStatus.PENDING || status === UserListingStatus.COMPLETED;
                                         } else if (signup && typeof signup === 'object' && signup.status) {
-                                            return signup.status === 'approved' || signup.status === 'pending' || signup.status === 'completed';
+                                            return signup.status === UserListingStatus.APPROVED || signup.status === UserListingStatus.PENDING || signup.status === UserListingStatus.COMPLETED;
                                         }
                                         return false;
                                     }).length;
@@ -1043,7 +990,7 @@ export class DBService {
             user_id: userId,
             listing_id: listingId,
             payload: payload,
-            status: 'pending',
+            status: VcIssueJobStatus.PENDING,
             retry_count: 0,
             created_ts: now.toISOString(),
             last_modified_ts: now.toISOString()
@@ -1316,11 +1263,11 @@ export class DBService {
                                             const vcSuccessCount = vcJobs.filter(job => job.status === VcIssueJobStatus.SUCCESS).length;
                                             
                                             if (vcPendingCount > 0) {
-                                                vcStatus = 'pending';
+                                                vcStatus = VcIssueJobStatus.PENDING;
                                             } else if (vcFailedCount > 0) {
-                                                vcStatus = 'failed';
+                                                vcStatus = VcIssueJobStatus.FAILED;
                                             } else if (vcSuccessCount > 0) {
-                                                vcStatus = 'success';
+                                                vcStatus = VcIssueJobStatus.SUCCESS;
                                             }
                                         }
                                         

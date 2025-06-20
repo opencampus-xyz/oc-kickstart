@@ -1,4 +1,5 @@
 import dbService from './dbService.js';
+import { VcIssueJobStatus } from '../../constants.js';
 
 class VCIssuer {
   constructor() {
@@ -21,7 +22,7 @@ class VCIssuer {
         const store = transaction.objectStore('vc_issue_jobs');
         const index = store.index('status');
 
-        const request = index.getAll('pending');
+        const request = index.getAll(VcIssueJobStatus.PENDING);
         
         request.onsuccess = () => {
           const pendingJobs = request.result || [];
@@ -69,14 +70,14 @@ class VCIssuer {
 
     try {
       if (result.status_code === 200) {
-        await this.updateVCJobStatus(jobId, 'success');
+        await this.updateVCJobStatus(jobId, VcIssueJobStatus.SUCCESS);
       } else if (result.status_code !== 500) {
-        await this.updateVCJobStatus(jobId, 'failed');
+        await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
       } else if (result.status_code === 500) {
         if (retry_count < this.maxRetries) {
           await this.incrementVCJobRetryCount(jobId);
         } else {
-          await this.updateVCJobStatus(jobId, 'failed');
+          await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
           await this.incrementVCJobRetryCount(jobId);
         }
       }
@@ -203,7 +204,7 @@ class VCIssuer {
     
     const { jobs, statusCounts } = await this.checkVCJobsStatus();
     
-    const pendingJobs = jobs.filter(job => job.status === 'pending');
+    const pendingJobs = jobs.filter(job => job.status === VcIssueJobStatus.PENDING);
     
     if (pendingJobs.length > 0) {
       await this.run();

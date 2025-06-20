@@ -36,33 +36,23 @@ export default function Login() {
 
   useEffect(() => {
     if (demoMode) {
-      const masterAdminOcid = localStorage.getItem('master_admin_ocid');
-      if (!masterAdminOcid) {
-        const randomEmail = generateRandomEmail(); 
-        setEmail(randomEmail);
-        setIsEmailLocked(true);
-      } else {
-        setIsEmailLocked(false);
-      }
-    }
-  }, [demoMode]);
-
-  useEffect(() => {
-    if (demoMode && !isEmailLocked) {
       const checkMasterAdmin = () => {
         const masterAdminOcid = localStorage.getItem('master_admin_ocid');
         if (!masterAdminOcid && !isEmailLocked) {
           const randomEmail = generateRandomEmail();
           setEmail(randomEmail);
           setIsEmailLocked(true);
+        } else if (masterAdminOcid && isEmailLocked) {
+          setIsEmailLocked(false);
         }
       };
 
       checkMasterAdmin();
       
-      const timeoutId = setTimeout(checkMasterAdmin, 100);
-      
-      return () => clearTimeout(timeoutId);
+      if (!isEmailLocked) {
+        const timeoutId = setTimeout(checkMasterAdmin, 100);
+        return () => clearTimeout(timeoutId);
+      }
     }
   }, [demoMode, isEmailLocked]);
 

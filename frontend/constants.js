@@ -40,3 +40,28 @@ export const USER_LISTING_STATUSES = [
   "completed",
   "all",
 ];
+
+// Database-related constants
+export const UserListingStatus = {
+    PENDING: 'pending',
+    DECLINED: 'declined',
+    APPROVED: 'approved',
+    COMPLETED: 'completed'
+};
+
+export const ListingTriggerMode = {
+    MANUAL: 'manual',
+    AUTO: 'auto'
+};
+
+export const ListingStatus = {
+    DRAFT: 'draft',
+    ACTIVE: 'active',
+    DELETED: 'deleted'
+};
+
+export const VcIssueJobStatus = {
+    PENDING: 'pending',
+    SUCCESS: 'success',
+    FAILED: 'failed'
+};
