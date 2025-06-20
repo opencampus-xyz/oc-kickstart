@@ -13,7 +13,8 @@ const adminAuthMiddleware = asyncWrapper(async (req, res, next) => {
   const adminResult = await db.query(adminQueryStr);
   const adminOcids = adminResult.rows[0]?.admin_ocids ?? [];
   const isAdmin = adminOcids.includes(ocid);
-  if (!isAdmin) {
+  const isMasterAdmin = process.env.MASTER_ADMIN_OCID === req.authenticatedUser;
+  if (!isAdmin && !isMasterAdmin) {
     throw new Error("Unauthorized");
   }
   next();
