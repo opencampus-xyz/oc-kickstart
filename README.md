@@ -22,7 +22,7 @@ to sign up for a developer account and get the API keys and Client ID, which wil
 
 1. Go to the `frontend` directory
 2. Copy `.env.example` to `.env` and update the environment variables
-3. You may configure the app metadata in `config.js`
+3. You may configure the app metadata in `config.json`
 4. Run `yarn install` to install the dependencies
 5. Run `yarn dev` to start the client at http://localhost:3001
 

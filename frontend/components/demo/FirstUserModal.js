@@ -21,7 +21,9 @@ import {
   Info as InfoIcon,
   Warning as WarningIcon,
 } from "@mui/icons-material";
-import { config } from "@/config";
+import { getConfigSync } from "../../config/configUtils";
+
+const config = getConfigSync();
 
 export const FirstUserModal = ({ open, onClose }) => {
   const handleClose = () => {

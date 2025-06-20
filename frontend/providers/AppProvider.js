@@ -1,6 +1,6 @@
 import { Loading } from "@/components/common/Loading";
 import { DemoModal } from "@/components/demo/DemoModal";
-import { config } from "@/config";
+import { getConfigSync, getConfig } from "../config/configUtils";
 import dbService from "@/db/indexeddb/dbService";
 import {
   Assignment,
@@ -26,7 +26,7 @@ import { useUser } from "./UserProvider";
 import { useState, useEffect } from "react";
 import { isIndexedDBMode } from '../utils';
 
-const theme = createTheme({
+const createAppTheme = (config) => createTheme({
   palette: {
     mode: config.theme,
   },
@@ -58,6 +58,23 @@ export const AppProvider = ({ children }) => {
   const { isRegisteredUser, isAdmin, isMasterAdmin, user } = useUser();
   const [isDemoUser, setIsDemoUser] = useState(isIndexedDBMode());
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [config, setConfig] = useState(getConfigSync());
+  const [theme, setTheme] = useState(createAppTheme(config));
+
+  // Load config from manager when available
+  useEffect(() => {
+    const loadConfig = async () => {
+      try {
+        const dynamicConfig = await getConfig(true);
+        setConfig(dynamicConfig);
+        setTheme(createAppTheme(dynamicConfig));
+      } catch (error) {
+        console.warn('Failed to load dynamic config, using default:', error);
+      }
+    };
+
+    loadConfig();
+  }, []);
 
   useEffect(() => {
     if (isDemoUser) {

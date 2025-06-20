@@ -22,8 +22,10 @@ import {
   Warning as WarningIcon,
   CheckCircle as CheckCircleIcon,
 } from "@mui/icons-material";
-import { config } from "@/config";
+import { getConfigSync } from "../../config/configUtils";
 import { useState } from "react";
+
+const config = getConfigSync();
 
 export const DemoModal = ({ open, onClose }) => {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
