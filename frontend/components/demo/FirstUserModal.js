@@ -56,7 +56,7 @@ export const FirstUserModal = ({ open, onClose }) => {
       </DialogTitle>
 
       <DialogContent sx={{ pt: 3 }}>
-        <Alert severity="success" sx={{ mb: 3 }}>
+        <Alert severity="success" sx={{ mb: 3, mt: 2 }}>
           <Typography variant="body1" fontWeight="medium">
             Congratulations! You are the first user to register on {config.appTitle}. 
             You have been automatically assigned the Master Admin role.
