@@ -2,11 +2,10 @@
 import { useEffect, useState } from 'react';
 import { Button, TextField, Typography, Paper, Box, Alert, Chip, Divider, Stack } from '@mui/material';
 import { Save, Download, Refresh, Info } from '@mui/icons-material';
-import configManager from '../../config/configManager';
+import { isDemoMode } from '../../config/configUtils';
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { useUser } from "@/providers/UserProvider";
 import { useRouter } from "next/navigation";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 
 export default function ConfigEditorPage() {
   const [formData, setFormData] = useState({
@@ -17,48 +16,54 @@ export default function ConfigEditorPage() {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
-  const [configSource, setConfigSource] = useState('loading');
   const [logoUrlError, setLogoUrlError] = useState('');
   const { isInitialized, isMasterAdmin } = useUser();
   const router = useRouter();
-  const fetchWithAuth = useAuthenticatedFetch();
 
   useEffect(() => {
     if (!isInitialized) return;
+    
+    if (!isDemoMode()) {
+      router.push("/home");
+      return;
+    }
+    
     if (!isMasterAdmin) {
       router.push("/home");
     }
   }, [isMasterAdmin, router, isInitialized]);
 
   useEffect(() => {
-    if (isMasterAdmin && isInitialized && fetchWithAuth) {
-      console.log('Setting authenticated fetch for configManager');
-      // Set the authenticated fetch function for the configManager
-      configManager.setAuthenticatedFetch(fetchWithAuth);
-      // Add a small delay to ensure authentication is ready
-      setTimeout(() => {
-        loadConfig();
-      }, 100);
+    if (isMasterAdmin && isInitialized && isDemoMode()) {
+      loadConfig();
     }
-  }, [isMasterAdmin, isInitialized]); // Keep fetchWithAuth out of dependencies to prevent loops
+  }, [isMasterAdmin, isInitialized]);
 
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const config = await configManager.getConfig();
-      setFormData(config);
-      const source = await configManager.getConfigSource();
-      setConfigSource(source);
+      // In demo mode, load from localStorage
+      const storedConfig = localStorage.getItem('appConfig');
+      if (storedConfig) {
+        const config = JSON.parse(storedConfig);
+        setFormData(config);
+      } else {
+        // Use default config if nothing in localStorage
+        const defaultConfig = {
+          appTitle: "OC Kickstart",
+          logoUrl: "/assets/logo.svg",
+          theme: "light"
+        };
+        setFormData(defaultConfig);
+      }
     } catch (error) {
       console.error('Failed to load configuration:', error);
       setMessage({ type: 'error', text: `Failed to load configuration: ${error.message}` });
-      // Fallback to default config
       setFormData({
         appTitle: "OC Kickstart",
         logoUrl: "/assets/logo.svg",
         theme: "light"
       });
-      setConfigSource('localStorage');
     } finally {
       setLoading(false);
     }
@@ -88,19 +93,11 @@ export default function ConfigEditorPage() {
     setMessage(null);
     
     try {
-      const result = await configManager.saveConfig(formData);
-      
+      localStorage.setItem('appConfig', JSON.stringify(formData));
       setMessage({
         type: 'success',
-        text: result.source === 'backend' 
-          ? 'Configuration saved to backend and localStorage.'
-          : result.source === 'indexeddb'
-          ? 'Configuration saved to localStorage (IndexedDB mode).'
-          : 'Configuration saved to localStorage (backend not available).'
+        text: 'Configuration saved to localStorage (Demo mode).'
       });
-
-      const newSource = await configManager.getConfigSource();
-      setConfigSource(newSource);
     } catch (error) {
       console.error('Failed to save configuration:', error);
       setMessage({ type: 'error', text: `Failed to save configuration: ${error.message}` });
@@ -111,9 +108,13 @@ export default function ConfigEditorPage() {
 
   const handleReset = async () => {
     try {
-      const defaultConfig = configManager.resetConfig();
+      localStorage.removeItem('appConfig');
+      const defaultConfig = {
+        appTitle: "OC Kickstart",
+        logoUrl: "/assets/logo.svg",
+        theme: "light"
+      };
       setFormData(defaultConfig);
-      await loadConfig();
       setMessage({ type: 'info', text: 'Configuration reset to default values.' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to reset configuration' });
@@ -122,34 +123,35 @@ export default function ConfigEditorPage() {
 
   const handleExport = () => {
     try {
-      configManager.exportConfig(formData);
-      setMessage({ type: 'success', text: 'Configuration exported as config.json' });
+      // Generate JavaScript code instead of JSON
+      const jsContent = `export const config = {
+  appTitle: "${formData.appTitle}",
+  logoUrl: "${formData.logoUrl}",
+  theme: "${formData.theme}"
+};
+
+export default config;`;
+      
+      const configBlob = new Blob([jsContent], {
+        type: 'application/javascript'
+      });
+      
+      const url = URL.createObjectURL(configBlob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'config.js';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      setMessage({ type: 'success', text: 'Configuration exported as config.js' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to export configuration' });
     }
   };
 
-  const getSourceText = (source) => {
-    switch (source) {
-      case 'backend': return 'Backend API';
-      case 'indexeddb': return 'IndexedDB Mode';
-      case 'localStorage': return 'Local Storage';
-      case 'default': return 'Default Config';
-      default: return 'Loading...';
-    }
-  };
-
-  const getSourceColor = (source) => {
-    switch (source) {
-      case 'backend': return 'success';
-      case 'indexeddb': return 'info';
-      case 'localStorage': return 'warning';
-      case 'default': return 'default';
-      default: return 'default';
-    }
-  };
-
-  if (loading || configSource === 'loading') {
+  if (loading) {
     return (
       <ProtectedRoute>
         <Box sx={{ p: 3 }}>
@@ -157,6 +159,11 @@ export default function ConfigEditorPage() {
         </Box>
       </ProtectedRoute>
     );
+  }
+
+  // Don't render if not in demo mode
+  if (!isDemoMode()) {
+    return null;
   }
 
   return (
@@ -169,8 +176,8 @@ export default function ConfigEditorPage() {
             </Typography>
             <Chip
               icon={<Info />}
-              label={getSourceText(configSource)}
-              color={getSourceColor(configSource)}
+              label="Demo Mode - LocalStorage"
+              color="info"
               variant="outlined"
             />
           </Box>
@@ -182,8 +189,7 @@ export default function ConfigEditorPage() {
           )}
 
           <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-            Edit your application configuration settings below. The system will automatically
-            use the appropriate storage method based on your current setup.
+            Edit your application configuration settings below. In demo mode, all changes are saved to your browser's localStorage.
           </Typography>
 
           <Stack spacing={3}>
@@ -278,11 +284,11 @@ export default function ConfigEditorPage() {
 
           <Box sx={{ mt: 3, p: 2, bgcolor: 'info.50', borderRadius: 1 }}>
             <Typography variant="body2" color="text.secondary">
-              <strong>How it works:</strong><br/>
-              • <strong>Backend Mode:</strong> When <code>NEXT_PUBLIC_BACKEND_URL</code> is set, config is saved to your backend API<br/>
-              • <strong>IndexedDB Mode:</strong> When <code>NEXT_PUBLIC_DB_MODE=indexeddb</code>, config is saved to browser storage<br/>
-              • <strong>Export:</strong> Download the config as a JSON file to manually update your config.json<br/>
-              • <strong>Fallback:</strong> If backend is unavailable, config is automatically saved to localStorage
+              <strong>Demo Mode:</strong><br/>
+              • Configuration is saved to your browser's localStorage<br/>
+              • Changes persist between sessions but are local to this browser<br/>
+              • Export the config to manually update your config.js file<br/>
+              • This page is only available in demo mode
             </Typography>
           </Box>
         </Paper>

@@ -1,69 +1,12 @@
-import { isIndexedDBMode } from '../utils';
+import defaultConfig from '../config.js';
 
 class ConfigManager {
     constructor() {
         this.configKey = 'appConfig';
-        this.backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL;
-        this.authenticatedFetch = null;
-    }
-
-    setAuthenticatedFetch(fetchFn) {
-        this.authenticatedFetch = fetchFn;
     }
 
     async getConfig() {
-        try {
-            if (isIndexedDBMode()) {
-                return await this.getConfigFromIndexedDB();
-            } else {
-                return await this.getConfigFromBackend();
-            }
-        } catch (error) {
-            return this.getConfigFromLocalStorage();
-        }
-    }
-
-    async getConfigFromIndexedDB() {
-        try {
-            const storedConfig = localStorage.getItem(this.configKey);
-            if (storedConfig) {
-                return JSON.parse(storedConfig);
-            }
-            
-            return this.getDefaultConfig();
-        } catch (error) {
-            return this.getConfigFromLocalStorage();
-        }
-    }
-
-    async getConfigFromBackend() {
-        if (!this.backendUrl) {
-            throw new Error('Backend URL not configured');
-        }
-        
-        if (!this.authenticatedFetch) {
-            throw new Error('Authenticated fetch not configured');
-        }
-        
-        try {
-            const response = await this.authenticatedFetch('/master-admin/app-config', {
-                method: 'GET',
-                headers: {
-                    'Content-Type': 'application/json',
-                }
-            });
-            
-            if (!response.ok) {
-                throw new Error(`Backend responded with ${response.status}`);
-            }
-
-            const config = await response.json();
-            localStorage.setItem(this.configKey, JSON.stringify(config));
-            return config;
-        } catch (error) {
-            console.warn('Backend config fetch failed, falling back to localStorage:', error.message);
-            throw error;
-        }
+        return this.getConfigFromLocalStorage();
     }
 
     getConfigFromLocalStorage() {
@@ -76,102 +19,38 @@ class ConfigManager {
     }
 
     getDefaultConfig() {
-        try {
-            const defaultConfig = require('../config.json');
-            return defaultConfig;
-        } catch (error) {
-            return {
-                appTitle: "OC Kickstart",
-                logoUrl: "/assets/logo.svg",
-                theme: "light"
-            };
-        }
+        return defaultConfig;
     }
 
     async saveConfig(config) {
-        try {
-            if (isIndexedDBMode()) {
-                localStorage.setItem(this.configKey, JSON.stringify(config));
-                return { success: true, source: 'localStorage' };
-            } else {
-                return await this.saveConfigToBackend(config);
-            }
-        } catch (error) {
-            localStorage.setItem(this.configKey, JSON.stringify(config));
-            return { success: true, source: 'localStorage', fallback: true };
-        }
-    }
-
-    async saveConfigToBackend(config) {
-        if (!this.backendUrl) {
-            throw new Error('Backend URL not configured');
-        }
-        
-        if (!this.authenticatedFetch) {
-            throw new Error('Authenticated fetch not configured');
-        }
-        
-        try {
-            const response = await this.authenticatedFetch('/master-admin/app-config', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(config)
-            });
-
-            if (!response.ok) {
-                throw new Error(`Backend responded with ${response.status}`);
-            }
-
-            localStorage.setItem(this.configKey, JSON.stringify(config));
-            return { success: true, source: 'backend' };
-        } catch (error) {
-            console.warn('Backend config save failed, falling back to localStorage:', error.message);
-            throw error;
-        }
+        localStorage.setItem(this.configKey, JSON.stringify(config));
+        return { success: true, source: 'localStorage' };
     }
 
     exportConfig(config = null) {
         const configToExport = config || this.getConfigFromLocalStorage() || this.getDefaultConfig();
         
-        const configBlob = new Blob([JSON.stringify(configToExport, null, 2)], {
-            type: 'application/json'
+        // Generate JavaScript code instead of JSON
+        const jsContent = `export const config = {
+  appTitle: "${configToExport.appTitle}",
+  logoUrl: "${configToExport.logoUrl}",
+  theme: "${configToExport.theme}"
+};
+
+export default config;`;
+        
+        const configBlob = new Blob([jsContent], {
+            type: 'application/javascript'
         });
         
         const url = URL.createObjectURL(configBlob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = 'config.json';
+        a.download = 'config.js';
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
         URL.revokeObjectURL(url);
-    }
-
-    async getConfigSource() {
-        try {
-            if (isIndexedDBMode()) {
-                return 'indexeddb';
-            } else if (this.backendUrl && this.authenticatedFetch) {
-                try {
-                    const response = await this.authenticatedFetch('/master-admin/app-config', {
-                        method: 'GET',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        }
-                    });
-                    return response.ok ? 'backend' : 'localStorage';
-                } catch (error) {
-                    console.warn('Backend config source check failed:', error.message);
-                    return 'localStorage';
-                }
-            } else {
-                return 'localStorage';
-            }
-        } catch (error) {
-            return 'localStorage';
-        }
     }
 
     resetConfig() {

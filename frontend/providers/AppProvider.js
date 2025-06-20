@@ -1,6 +1,6 @@
 import { Loading } from "@/components/common/Loading";
 import { DemoModal } from "@/components/demo/DemoModal";
-import { getConfigSync, getConfig } from "../config/configUtils";
+import { getConfigSync, getConfig, isDemoMode } from "../config/configUtils";
 import dbService from "@/db/indexeddb/dbService";
 import {
   Assignment,
@@ -213,7 +213,7 @@ export const AppProvider = ({ children }) => {
   const masterAdminNavigation = [
     { kind: "header", title: "Master Admin" },
     { segment: "admin-configs", title: "Admin Configs", icon: <Tune /> },
-    { segment: "configuration", title: "Configuration", icon: <Settings /> },
+    ...(isDemoMode() ? [{ segment: "configuration", title: "Configuration", icon: <Settings /> }] : []),
   ];
 
   const navigation = [
