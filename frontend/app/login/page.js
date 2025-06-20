@@ -48,11 +48,6 @@ export default function Login() {
       };
 
       checkMasterAdmin();
-      
-      if (!isEmailLocked) {
-        const timeoutId = setTimeout(checkMasterAdmin, 100);
-        return () => clearTimeout(timeoutId);
-      }
     }
   }, [demoMode, isEmailLocked]);
 

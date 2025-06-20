@@ -2,7 +2,7 @@
 
 import { UserListingStatus, ListingTriggerMode, ListingStatus, VcIssueJobStatus } from '../../constants.js';
 
-const DB_NAME = 'oc_generics_db';
+const DB_NAME = 'oc_kickstart_db';
 const DB_VERSION = 2;
 
 export function initDatabase() {
