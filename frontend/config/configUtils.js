@@ -1,5 +1,5 @@
 import defaultConfig from '../config.js';
-import { isIndexedDBMode } from '../utils';
+import { isDemoMode } from '../utils';
 
 let configManager = null;
 
@@ -9,10 +9,6 @@ if (typeof window !== 'undefined') {
     } catch (error) {
         console.warn('Config manager not available:', error);
     }
-}
-
-export function isDemoMode() {
-    return typeof window !== 'undefined' && isIndexedDBMode();
 }
 
 export async function getConfig(useManager = false) {

@@ -3,12 +3,14 @@ import { useState, useEffect } from "react";
 import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
 import { enqueueSnackbar } from "notistack";
+import { useRouter } from "next/navigation";
 
 export const ListingSignUp = ({ listing, size = "medium" }) => {
   const [signUpStatus, setSignUpStatus] = useState(null);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const { isRegisteredUser } = useUser();
   const fetchWithAuth = useAuthenticatedFetch();
+  const router = useRouter();
 
   const fetchSignUpStatus = async () => {
     if (!isRegisteredUser) return;
@@ -27,6 +29,13 @@ export const ListingSignUp = ({ listing, size = "medium" }) => {
   }, [listing.id, isRegisteredUser]);
 
   const handleSignUp = async () => {
+    if (!isRegisteredUser) {
+      // Redirect to login page with return URL
+      const currentUrl = encodeURIComponent(window.location.href);
+      router.push(`/login?originUrl=${currentUrl}`);
+      return;
+    }
+
     try {
       await fetchWithAuth("/auth-user/signup-for-listing", {
         method: "POST",
@@ -43,7 +52,7 @@ export const ListingSignUp = ({ listing, size = "medium" }) => {
 
   const disableSignUp = listing.status !== "active" || !!signUpStatus;
   const disableSignUpTooltip = () => {
-    if (!isRegisteredUser) return "Please login to sign up for a listing";
+    if (!isRegisteredUser) return "Click to login and sign up for this listing";
     if (listing.status !== "active") return "This listing is not active";
     if (signUpStatus === "pending") return "Your sign up is pending approval";
     return "You have already signed up for this listing";

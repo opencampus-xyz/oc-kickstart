@@ -1,30 +1,8 @@
 "use client";
 
-export const UserListingStatus = {
-    PENDING: 'pending',
-    DECLINED: 'declined',
-    APPROVED: 'approved',
-    COMPLETED: 'completed'
-};
+import { UserListingStatus, ListingTriggerMode, ListingStatus, VcIssueJobStatus } from '../../constants.js';
 
-export const ListingTriggerMode = {
-    MANUAL: 'manual',
-    AUTO: 'auto'
-};
-
-export const ListingStatus = {
-    DRAFT: 'draft',
-    ACTIVE: 'active',
-    DELETED: 'deleted'
-};
-
-export const VcIssueJobStatus = {
-    PENDING: 'pending',
-    SUCCESS: 'success',
-    FAILED: 'failed'
-};
-
-const DB_NAME = 'oc_generics_db';
+const DB_NAME = 'oc_kickstart_db';
 const DB_VERSION = 2;
 
 export function initDatabase() {

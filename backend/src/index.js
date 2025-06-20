@@ -47,7 +47,7 @@ app.get(
   `;
     const adminResult = await db.query(adminQueryStr);
     const adminOcids = adminResult.rows[0]?.admin_ocids ?? [];
-    const isAdmin = adminOcids.includes(ocid);
+    const isAdmin = adminOcids.includes(ocid) || isMasterAdmin;
     // check if the user is a user
     const userQueryStr = `
   SELECT * FROM users WHERE oc_id = $1 LIMIT 1

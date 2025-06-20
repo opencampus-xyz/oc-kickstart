@@ -110,6 +110,4 @@ export const publicFetch = async (url, options = {}) => {
     return strategy.publicFetch(url, options);
 };
 
-export const isIndexedDBMode = () => {
-    return FetchStrategyFactory.isIndexedDBMode();
-}; 
+export const isDemoMode = () => process.env.NEXT_PUBLIC_DEMO_MODE === 'true';

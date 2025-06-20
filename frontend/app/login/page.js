@@ -4,7 +4,7 @@ import { Alert, Divider, TextField } from "@mui/material";
 import { LoginButton, useOCAuth } from "@opencampus/ocid-connect-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
-import { isIndexedDBMode } from "@/utils";
+import { isDemoMode } from "@/utils";
 import styles from "./login.module.css";
 
 const validateEmail = (email) => {
@@ -26,7 +26,7 @@ export default function Login() {
   const { authState } = useOCAuth();
   const params = useSearchParams();
   const originUrl = params.get("originUrl") ? decodeURIComponent(params.get("originUrl")) : null;
-  const isDemoMode = isIndexedDBMode();
+  const demoMode = isDemoMode();
 
   useEffect(() => {
     if (isInitialized && authState?.isAuthenticated) {
@@ -35,42 +35,27 @@ export default function Login() {
   }, [isInitialized, authState, originUrl]);
 
   useEffect(() => {
-    if (isDemoMode) {
-      const masterAdminOcid = localStorage.getItem('master_admin_ocid');
-      if (!masterAdminOcid) {
-        const randomEmail = generateRandomEmail(); 
-        setEmail(randomEmail);
-        setIsEmailLocked(true);
-      } else {
-        setIsEmailLocked(false);
-      }
-    }
-  }, [isDemoMode]);
-
-  useEffect(() => {
-    if (isDemoMode && !isEmailLocked) {
+    if (demoMode) {
       const checkMasterAdmin = () => {
         const masterAdminOcid = localStorage.getItem('master_admin_ocid');
         if (!masterAdminOcid && !isEmailLocked) {
           const randomEmail = generateRandomEmail();
           setEmail(randomEmail);
           setIsEmailLocked(true);
+        } else if (masterAdminOcid && isEmailLocked) {
+          setIsEmailLocked(false);
         }
       };
 
       checkMasterAdmin();
-      
-      const timeoutId = setTimeout(checkMasterAdmin, 100);
-      
-      return () => clearTimeout(timeoutId);
     }
-  }, [isDemoMode, isEmailLocked]);
+  }, [demoMode, isEmailLocked]);
 
   const isInvalidLogin = params.get("invalidLogin") === "true";
   const isAdminLogin = params.get("adminLogin") === "true";
 
   const onChange = (e) => {
-    if (isDemoMode && isEmailLocked) {
+    if (demoMode && isEmailLocked) {
       return;
     }
 
@@ -119,7 +104,7 @@ export default function Login() {
           sx={{ minWidth: "300px" }}
           error={!!error}
           helperText={error}
-          disabled={isDemoMode && isEmailLocked}
+          disabled={demoMode && isEmailLocked}
         />
         <LoginButton state={{ email, path: "signup", originUrl }} />
       </div>
