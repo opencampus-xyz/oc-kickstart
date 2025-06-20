@@ -30,7 +30,6 @@ class ConfigManager {
     exportConfig(config = null) {
         const configToExport = config || this.getConfigFromLocalStorage() || this.getDefaultConfig();
         
-        // Generate JavaScript code instead of JSON
         const jsContent = `export const config = {
   appTitle: "${configToExport.appTitle}",
   logoUrl: "${configToExport.logoUrl}",
