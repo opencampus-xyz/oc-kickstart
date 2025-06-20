@@ -1,16 +1,8 @@
 import { Router } from "express";
 import db from "../db.js";
 import { asyncWrapper } from "../utils.js";
-import fs from 'fs/promises';
-import path from 'path';
-import { fileURLToPath } from 'url';
 
 const router = new Router();
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const CONFIG_FILE_PATH = path.join(__dirname, '..', '..', 'app-config.json');
 
 const masterAdminAuthMiddleware = asyncWrapper(async (req, res, next) => {
   const isMasterAdmin = process.env.MASTER_ADMIN_OCID === req.authenticatedUser;

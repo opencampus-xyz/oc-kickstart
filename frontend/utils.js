@@ -104,7 +104,6 @@ class FetchStrategyFactory {
     }
 }
 
-// Only create factory and strategy on the client
 let factory = null;
 let strategy = null;
 
@@ -115,7 +114,6 @@ if (typeof window !== 'undefined') {
 
 export const fetchWithAuthToken = async (url, options = {}, authToken) => {
     if (typeof window === 'undefined') {
-        // On server, use SQL strategy directly
         return sqlFetchWithAuthToken(url, options, authToken);
     }
     return strategy.fetchWithAuthToken(url, options, authToken);
@@ -123,7 +121,6 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
 
 export const publicFetch = async (url, options = {}) => {
     if (typeof window === 'undefined') {
-        // On server, use SQL strategy directly
         return sqlPublicFetch(url, options);
     }
     return strategy.publicFetch(url, options);
