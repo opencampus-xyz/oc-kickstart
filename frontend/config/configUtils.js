@@ -13,24 +13,31 @@ if (typeof window !== 'undefined') {
 
 export async function getConfig(useManager = false) {
     if (typeof window === 'undefined') {
+        console.log('[getConfig] SSR: returning defaultConfig from config.js', defaultConfig);
         return defaultConfig;
     }
     if (isDemoMode()) {
         const storedConfig = localStorage.getItem('appConfig');
         if (storedConfig) {
             try {
-                return JSON.parse(storedConfig);
+                const parsed = JSON.parse(storedConfig);
+                console.log('[getConfig] Demo mode: returning config from localStorage', parsed);
+                return parsed;
             } catch (e) {
                 console.warn('Failed to parse config from localStorage:', e);
             }
         }
+        console.log('[getConfig] Demo mode: localStorage empty, returning defaultConfig from config.js', defaultConfig);
         return defaultConfig;
     }
     if (!configManager || !useManager) {
+        console.log('[getConfig] Not demo mode: returning defaultConfig from config.js', defaultConfig);
         return defaultConfig;
     }
     try {
-        return await configManager.getConfig();
+        const config = await configManager.getConfig();
+        console.log('[getConfig] Not demo mode: returning config from configManager', config);
+        return config;
     } catch (error) {
         console.warn('Failed to get config from manager, using default:', error);
         return defaultConfig;
@@ -42,11 +49,14 @@ export function getConfigSync() {
         const storedConfig = localStorage.getItem('appConfig');
         if (storedConfig) {
             try {
-                return JSON.parse(storedConfig);
+                const parsed = JSON.parse(storedConfig);
+                console.log('[getConfigSync] Demo mode: returning config from localStorage', parsed);
+                return parsed;
             } catch (e) {
                 console.warn('Failed to parse config from localStorage:', e);
             }
         }
+        console.log('[getConfigSync] Demo mode: localStorage empty, returning defaultConfig from config.js', defaultConfig);
     }
     return defaultConfig;
 }

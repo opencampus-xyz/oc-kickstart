@@ -1,6 +1,6 @@
 import { Loading } from "@/components/common/Loading";
 import { DemoModal } from "@/components/demo/DemoModal";
-import { config } from "@/config";
+import { getConfigSync } from "../config/configUtils";
 import dbService from "@/db/indexeddb/dbService";
 import {
   Assignment,
@@ -13,6 +13,7 @@ import {
   Person,
   Tune,
   Help as HelpIcon,
+  Settings,
 } from "@mui/icons-material";
 import { Button, IconButton, Tooltip } from "@mui/material";
 import { createTheme } from "@mui/material/styles";
@@ -25,12 +26,7 @@ import React from "react";
 import { useUser } from "./UserProvider";
 import { useState, useEffect } from "react";
 import { isDemoMode } from '../utils';
-
-const theme = createTheme({
-  palette: {
-    mode: config.theme,
-  },
-});
+import { getLogoUrl } from '../config/configUtils';
 
 const Logout = () => {
   const { ocAuth, authState } = useOCAuth();
@@ -58,6 +54,11 @@ export const AppProvider = ({ children }) => {
   const { isRegisteredUser, isAdmin, isMasterAdmin, user } = useUser();
   const [isDemoUser, setIsDemoUser] = useState(isDemoMode());
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [clientConfig, setClientConfig] = useState(null);
+
+  useEffect(() => {
+    setClientConfig(getConfigSync());
+  }, []);
 
   useEffect(() => {
     if (isDemoUser) {
@@ -75,21 +76,29 @@ export const AppProvider = ({ children }) => {
 
   const handleHelpClick = () => setShowDemoModal(true);
 
-  // Custom logo component with help button
+  if (!clientConfig) return null;
+
+  const theme = createTheme({
+    palette: {
+      mode: clientConfig.theme,
+    },
+  });
+
   const CustomLogo = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <Image
-        src={config.logoUrl}
+      <img
+        src={getLogoUrl(clientConfig.logoUrl)}
         width={20}
         height={20}
-        alt={config.appTitle}
+        alt={clientConfig.appTitle}
+        style={{ display: 'block' }}
       />
       {isDemoUser && (
         <Tooltip title="Demo Information & Help">
           <IconButton
             onClick={handleHelpClick}
             size="small"
-            sx={{ 
+            sx={{
               color: 'secondary.light',
               padding: '2px',
               '&:hover': {
@@ -146,6 +155,7 @@ export const AppProvider = ({ children }) => {
   const masterAdminNavigation = [
     { kind: "header", title: "Master Admin" },
     { segment: "admin-configs", title: "Admin Configs", icon: <Tune /> },
+    { segment: "configuration", title: "Configuration", icon: <Settings /> },
   ];
 
   const navigation = [
@@ -174,7 +184,7 @@ export const AppProvider = ({ children }) => {
         theme={theme}
         branding={{
           homeUrl: "/home",
-          title: config.appTitle,
+          title: clientConfig.appTitle,
           logo: <CustomLogo />,
         }}
       >
