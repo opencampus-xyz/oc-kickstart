@@ -60,8 +60,8 @@ export const DemoModal = ({ open, onClose }) => {
         </Typography>
       </DialogTitle>
 
-      <DialogContent sx={{ pt: 3 }}>
-        <Alert severity="info" sx={{ mb: 3 }}>
+      <DialogContent sx={{ pt: 4 }}>
+        <Alert severity="info" sx={{ mb: 3, mt: 2 }}>
           <Typography variant="body1" fontWeight="medium">
             Welcome to the {config.appTitle} demo! This is a demonstration environment showcasing OC Achievement management capabilities.
           </Typography>
