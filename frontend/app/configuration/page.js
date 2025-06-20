@@ -269,20 +269,23 @@ export default config;`;
             Current Configuration
           </Typography>
 
-          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
-            <pre style={{ 
-              margin: 0, 
-              fontSize: '0.875rem',
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-all',
-              overflowWrap: 'break-word',
-              hyphens: 'auto'
-            }}>
+          <Paper variant="outlined" sx={{ p: 2, bgcolor: 'background.default' }}>
+            <pre
+              style={{ 
+                margin: 0, 
+                fontSize: '0.875rem',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-all',
+                overflowWrap: 'break-word',
+                hyphens: 'auto',
+                color: 'inherit'
+              }}
+            >
               {JSON.stringify(formData, null, 2)}
             </pre>
           </Paper>
 
-          <Box sx={{ mt: 3, p: 2, bgcolor: 'info.50', borderRadius: 1 }}>
+          <Box sx={{ mt: 3, p: 2, bgcolor: 'action.hover', borderRadius: 1 }}>
             <Typography variant="body2" color="text.secondary">
               <strong>Demo Mode:</strong><br/>
               • Configuration is saved to your browser's localStorage<br/>
