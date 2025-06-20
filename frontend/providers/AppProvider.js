@@ -13,6 +13,7 @@ import {
   Person,
   Tune,
   Help as HelpIcon,
+  Settings,
 } from "@mui/icons-material";
 import { Button, IconButton, Tooltip } from "@mui/material";
 import { createTheme } from "@mui/material/styles";
@@ -92,7 +93,6 @@ export const AppProvider = ({ children }) => {
 
   const handleHelpClick = () => setShowDemoModal(true);
 
-  // Custom logo component with help button
   const CustomLogo = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <Image
@@ -163,6 +163,7 @@ export const AppProvider = ({ children }) => {
   const masterAdminNavigation = [
     { kind: "header", title: "Master Admin" },
     { segment: "admin-configs", title: "Admin Configs", icon: <Tune /> },
+    { segment: "configuration", title: "Configuration", icon: <Settings /> },
   ];
 
   const navigation = [
