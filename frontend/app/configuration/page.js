@@ -6,6 +6,7 @@ import configManager from '../../config/configManager';
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { useUser } from "@/providers/UserProvider";
 import { useRouter } from "next/navigation";
+import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 
 export default function ConfigEditorPage() {
   const [formData, setFormData] = useState({
@@ -14,10 +15,13 @@ export default function ConfigEditorPage() {
     theme: 'light'
   });
   const [saving, setSaving] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState(null);
   const [configSource, setConfigSource] = useState('loading');
+  const [logoUrlError, setLogoUrlError] = useState('');
   const { isInitialized, isMasterAdmin } = useUser();
   const router = useRouter();
+  const fetchWithAuth = useAuthenticatedFetch();
 
   useEffect(() => {
     if (!isInitialized) return;
@@ -27,22 +31,57 @@ export default function ConfigEditorPage() {
   }, [isMasterAdmin, router, isInitialized]);
 
   useEffect(() => {
-    if (isMasterAdmin) {
-      loadConfig();
+    if (isMasterAdmin && isInitialized && fetchWithAuth) {
+      console.log('Setting authenticated fetch for configManager');
+      // Set the authenticated fetch function for the configManager
+      configManager.setAuthenticatedFetch(fetchWithAuth);
+      // Add a small delay to ensure authentication is ready
+      setTimeout(() => {
+        loadConfig();
+      }, 100);
     }
-  }, [isMasterAdmin]);
+  }, [isMasterAdmin, isInitialized]); // Keep fetchWithAuth out of dependencies to prevent loops
 
   const loadConfig = async () => {
+    setLoading(true);
     try {
       const config = await configManager.getConfig();
       setFormData(config);
       const source = await configManager.getConfigSource();
       setConfigSource(source);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to load configuration' });
+      console.error('Failed to load configuration:', error);
+      setMessage({ type: 'error', text: `Failed to load configuration: ${error.message}` });
+      // Fallback to default config
+      setFormData({
+        appTitle: "OC Kickstart",
+        logoUrl: "/assets/logo.svg",
+        theme: "light"
+      });
+      setConfigSource('localStorage');
+    } finally {
+      setLoading(false);
     }
   };
 
+  const validateLogoUrl = (url) => {
+    if (!url) return '';
+    
+    if (url.startsWith('/')) {
+      return '';
+    }
+    
+    try {
+      const urlObj = new URL(url);
+      if (urlObj.protocol === 'http:' || urlObj.protocol === 'https:') {
+        return '';
+      } else {
+        return 'URL must use HTTP or HTTPS protocol';
+      }
+    } catch (error) {
+      return 'Please enter a valid URL or relative path (starting with /)';
+    }
+  };
 
   const handleSave = async () => {
     setSaving(true);
@@ -63,7 +102,8 @@ export default function ConfigEditorPage() {
       const newSource = await configManager.getConfigSource();
       setConfigSource(newSource);
     } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to save configuration' });
+      console.error('Failed to save configuration:', error);
+      setMessage({ type: 'error', text: `Failed to save configuration: ${error.message}` });
     } finally {
       setSaving(false);
     }
@@ -109,7 +149,7 @@ export default function ConfigEditorPage() {
     }
   };
 
-  if (configSource === 'loading') {
+  if (loading || configSource === 'loading') {
     return (
       <ProtectedRoute>
         <Box sx={{ p: 3 }}>
@@ -153,14 +193,22 @@ export default function ConfigEditorPage() {
               value={formData.appTitle}
               onChange={(e) => setFormData({ ...formData, appTitle: e.target.value })}
               helperText="The title displayed in the browser tab and app header"
+              disabled={loading || saving}
             />
 
             <TextField
               fullWidth
               label="Logo URL"
               value={formData.logoUrl}
-              onChange={(e) => setFormData({ ...formData, logoUrl: e.target.value })}
-              helperText="Path to your logo image (relative to public folder)"
+              onChange={(e) => {
+                const url = e.target.value;
+                setFormData({ ...formData, logoUrl: url });
+                setLogoUrlError(validateLogoUrl(url));
+              }}
+              helperText={logoUrlError || "Enter a relative path (e.g., /assets/logo.svg) or full URL (e.g., https://example.com/logo.png)"}
+              placeholder="/assets/logo.svg or https://example.com/logo.png"
+              disabled={loading || saving}
+              error={!!logoUrlError}
             />
 
             <TextField
@@ -170,6 +218,7 @@ export default function ConfigEditorPage() {
               value={formData.theme}
               onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
               helperText="The default theme for the application"
+              disabled={loading || saving}
               SelectProps={{
                 native: true,
               }}
@@ -215,7 +264,14 @@ export default function ConfigEditorPage() {
           </Typography>
 
           <Paper variant="outlined" sx={{ p: 2, bgcolor: 'grey.50' }}>
-            <pre style={{ margin: 0, fontSize: '0.875rem' }}>
+            <pre style={{ 
+              margin: 0, 
+              fontSize: '0.875rem',
+              whiteSpace: 'pre-wrap',
+              wordBreak: 'break-all',
+              overflowWrap: 'break-word',
+              hyphens: 'auto'
+            }}>
               {JSON.stringify(formData, null, 2)}
             </pre>
           </Paper>

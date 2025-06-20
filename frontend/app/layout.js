@@ -1,4 +1,4 @@
-import { getConfigSync } from "../config/configUtils";
+import { getConfigSync, getLogoUrl } from "../config/configUtils";
 import Providers from "@/providers";
 import "./globals.css";
 
@@ -8,7 +8,7 @@ export const metadata = {
   title: config.appTitle,
   description: "OC Achievement Management System",
   icons: {
-    icon: config.logoUrl,
+    icon: getLogoUrl(config.logoUrl),
   },
 };
 

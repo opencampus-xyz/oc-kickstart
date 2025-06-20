@@ -26,6 +26,7 @@ import React from "react";
 import { useUser } from "./UserProvider";
 import { useState, useEffect } from "react";
 import { isIndexedDBMode } from '../utils';
+import { getLogoUrl } from '../config/configUtils';
 
 const createAppTheme = (config) => createTheme({
   palette: {
@@ -62,7 +63,6 @@ export const AppProvider = ({ children }) => {
   const [config, setConfig] = useState(getConfigSync());
   const [theme, setTheme] = useState(createAppTheme(config));
 
-  // Load config from manager when available
   useEffect(() => {
     const loadConfig = async () => {
       try {
@@ -93,34 +93,84 @@ export const AppProvider = ({ children }) => {
 
   const handleHelpClick = () => setShowDemoModal(true);
 
-  const CustomLogo = () => (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-      <Image
-        src={config.logoUrl}
-        width={20}
-        height={20}
-        alt={config.appTitle}
-      />
-      {isDemoUser && (
-        <Tooltip title="Demo Information & Help">
-          <IconButton
-            onClick={handleHelpClick}
-            size="small"
-            sx={{ 
-              color: 'secondary.light',
-              padding: '2px',
-              '&:hover': {
-                backgroundColor: 'secondary.light',
-                color: 'white'
-              }
+  const CustomLogo = () => {
+    const [imageError, setImageError] = useState(false);
+    
+    const handleImageError = () => {
+      setImageError(true);
+    };
+
+    if (imageError) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div 
+            style={{ 
+              width: 20, 
+              height: 20, 
+              backgroundColor: '#ccc', 
+              borderRadius: '4px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '12px',
+              color: '#666'
             }}
           >
-            <HelpIcon fontSize="small" />
-          </IconButton>
-        </Tooltip>
-      )}
-    </div>
-  );
+            {config.appTitle.charAt(0).toUpperCase()}
+          </div>
+          {isDemoUser && (
+            <Tooltip title="Demo Information & Help">
+              <IconButton
+                onClick={handleHelpClick}
+                size="small"
+                sx={{ 
+                  color: 'secondary.light',
+                  padding: '2px',
+                  '&:hover': {
+                    backgroundColor: 'secondary.light',
+                    color: 'white'
+                  }
+                }}
+              >
+                <HelpIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+        </div>
+      );
+    }
+
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <Image
+          src={getLogoUrl(config.logoUrl)}
+          width={20}
+          height={20}
+          alt={config.appTitle}
+          onError={handleImageError}
+          unoptimized={getLogoUrl(config.logoUrl).startsWith('http')} // Don't optimize external URLs
+        />
+        {isDemoUser && (
+          <Tooltip title="Demo Information & Help">
+            <IconButton
+              onClick={handleHelpClick}
+              size="small"
+              sx={{ 
+                color: 'secondary.light',
+                padding: '2px',
+                '&:hover': {
+                  backgroundColor: 'secondary.light',
+                  color: 'white'
+                }
+              }}
+            >
+              <HelpIcon fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        )}
+      </div>
+    );
+  };
 
   const adminNavigation = [
     {
