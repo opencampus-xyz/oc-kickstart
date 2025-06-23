@@ -1,11 +1,13 @@
-import { config } from "@/config";
+import configManager from "../config/configManager";
 import Providers from "@/providers";
 import "./globals.css";
+
+const config = configManager.getConfig();
 
 export const metadata = {
   title: config.appTitle,
   icons: {
-    icon: config.logoUrl,
+    icon: configManager.getLogoUrl(config.logoUrl),
   },
 };
 

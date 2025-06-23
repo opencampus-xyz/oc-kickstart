@@ -1,6 +1,7 @@
 import { Router } from "express";
 import db from "../db.js";
 import { asyncWrapper } from "../utils.js";
+
 const router = new Router();
 
 const masterAdminAuthMiddleware = asyncWrapper(async (req, res, next) => {

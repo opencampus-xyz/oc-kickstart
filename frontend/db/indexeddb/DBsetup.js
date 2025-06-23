@@ -20,15 +20,11 @@ export function initDatabase() {
 
         request.onsuccess = (event) => {
             const db = event.target.result;
-            console.log('Database opened successfully');
             resolve(db);
         };
 
         request.onupgradeneeded = (event) => {
             const db = event.target.result;
-            console.log('Database upgrade needed');
-
-            // Create object stores and indexes
             createObjectStores(db);
         };
     });
