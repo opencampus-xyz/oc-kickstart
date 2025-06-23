@@ -8,23 +8,23 @@ class ConfigManager {
 
     getConfig() {
         if (isDemoMode()) {
-            return this.getConfigFromLocalStorage();
+            const config = this.getConfigFromLocalStorage();
+            if (config) {
+                return config;
+            }
         }
         return defaultConfig;
     }
 
     getConfigFromLocalStorage() {
-        if (typeof window !== 'undefined') {
+        try {
             const storedConfig = localStorage.getItem(this.configKey);
             if (storedConfig) {
-                try {
-                    return JSON.parse(storedConfig);
-                } catch (e) {
-                    console.warn('Failed to parse config from localStorage:', e);
-                }
+                return JSON.parse(storedConfig);
             }
+        } catch (e) {
+            console.warn('Failed to get config from localStorage:', e);
         }
-        return defaultConfig;
     }
 
     getDefaultConfig() {
