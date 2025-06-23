@@ -67,8 +67,8 @@ export default function Tags() {
     },
   ];
 
-  const formatData = (data) =>
-    data.map((tag) => ({
+  const formatData = (data) => {
+    const formatted = data.map((tag) => ({
       id: tag.id,
       name: tag.name,
       description: tag.description,
@@ -77,6 +77,8 @@ export default function Tags() {
       status: tag.archived_ts ? "Archived" : "Active",
       vc_properties: tag.vc_properties,
     }));
+    return formatted;
+  };
 
   const onClose = () => {
     setShowTagEditModal(false);
@@ -109,6 +111,7 @@ export default function Tags() {
             tag={tagToBeAdded}
             open={!!tagToBeAdded}
             onClose={() => setTagToBeAdded(false)}
+            refetch={refetch}
           />
         </div>
       )}

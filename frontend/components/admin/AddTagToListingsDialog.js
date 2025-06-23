@@ -15,7 +15,7 @@ import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import styles from "./CreateEditTagDialog.module.css";
 
-export const AddTagToListingsDialog = ({ open, onClose, tag }) => {
+export const AddTagToListingsDialog = ({ open, onClose, tag, refetch }) => {
   const [selectedListings, setSelectedListings] = useState([]);
   const [listings, setListings] = useState([]);
   const fetchWithAuth = useAuthenticatedFetch();

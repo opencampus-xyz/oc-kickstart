@@ -1,5 +1,8 @@
 import { Loading } from "@/components/common/Loading";
+import { DemoModal } from "@/components/demo/DemoModal";
 import { config } from "@/config";
+import dbService from "@/db/indexeddb/dbService";
+import VCIssuerService from "@/db/indexeddb/vc-issuer";
 import {
   Assignment,
   EmojiEvents,
@@ -10,8 +13,9 @@ import {
   People,
   Person,
   Tune,
+  Help as HelpIcon,
 } from "@mui/icons-material";
-import { Button } from "@mui/material";
+import { Button, IconButton, Tooltip } from "@mui/material";
 import { createTheme } from "@mui/material/styles";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { DashboardLayout } from "@toolpad/core";
@@ -20,6 +24,8 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { useUser } from "./UserProvider";
+import { useState, useEffect } from "react";
+import { isDemoMode } from '../utils';
 
 const theme = createTheme({
   palette: {
@@ -51,6 +57,66 @@ const Logout = () => {
 export const AppProvider = ({ children }) => {
   const { authState } = useOCAuth();
   const { isRegisteredUser, isAdmin, isMasterAdmin, user } = useUser();
+  const [isDemoUser, setIsDemoUser] = useState(isDemoMode());
+  const [showDemoModal, setShowDemoModal] = useState(false);
+
+  useEffect(() => {
+    if (isDemoUser) {
+      const acknowledged = localStorage.getItem('demo_modal_acknowledged');
+      if (!acknowledged) {
+        setShowDemoModal(true);
+      }
+    }
+  }, [isDemoUser]);
+
+  useEffect(() => {
+    dbService.ensureInitialized().then(() => {
+      const vcIssuer = VCIssuerService.getInstance();
+      vcIssuer.startService(
+        Math.max(
+          30000,
+          (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000
+        )
+      );
+    });
+  }, []);
+
+  const handleCloseDemoModal = () => {
+    localStorage.setItem('demo_modal_acknowledged', 'true');
+    setShowDemoModal(false);
+  };
+
+  const handleHelpClick = () => setShowDemoModal(true);
+
+  // Custom logo component with help button
+  const CustomLogo = () => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <Image
+        src={config.logoUrl}
+        width={20}
+        height={20}
+        alt={config.appTitle}
+      />
+      {isDemoUser && (
+        <Tooltip title="Demo Information & Help">
+          <IconButton
+            onClick={handleHelpClick}
+            size="small"
+            sx={{ 
+              color: 'secondary.light',
+              padding: '2px',
+              '&:hover': {
+                backgroundColor: 'secondary.light',
+                color: 'white'
+              }
+            }}
+          >
+            <HelpIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
+    </div>
+  );
 
   const adminNavigation = [
     {
@@ -104,7 +170,9 @@ export const AppProvider = ({ children }) => {
   const toolbarActions = () => {
     const router = useRouter();
     if (authState?.isAuthenticated) return null;
+    
     const onClick = () => router.push(`/login?originUrl=${encodeURIComponent(window.location.href)}`);
+    
     return (
       <Button variant="contained" onClick={onClick}>
         Login / Sign up
@@ -120,14 +188,7 @@ export const AppProvider = ({ children }) => {
         branding={{
           homeUrl: "/home",
           title: config.appTitle,
-          logo: (
-            <Image
-              src={config.logoUrl}
-              width={20}
-              height={20}
-              alt={config.appTitle}
-            />
-          ),
+          logo: <CustomLogo />,
         }}
       >
         <DashboardLayout
@@ -140,6 +201,11 @@ export const AppProvider = ({ children }) => {
           {children}
         </DashboardLayout>
       </NextAppProvider>
+      
+      <DemoModal
+        open={showDemoModal}
+        onClose={handleCloseDemoModal}
+      />
     </React.Suspense>
   );
 };

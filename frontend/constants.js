@@ -35,8 +35,27 @@ export const ACHIEVEMENT_TYPES = [
 export const LISTING_TRIGGER_MODES = ["manual", "auto"];
 
 export const USER_LISTING_STATUSES = [
-  "approved",
-  "declined",
-  "completed",
-  "all",
+    'pending',
+    'declined',
+    'approved',
+    'completed',
+    'all' //For search only
 ];
+
+// Database-related constants
+export const ListingTriggerMode = {
+    MANUAL: 'manual',
+    AUTO: 'auto'
+};
+
+export const ListingStatus = {
+    DRAFT: 'draft',
+    ACTIVE: 'active',
+    DELETED: 'deleted'
+};
+
+export const VcIssueJobStatus = {
+    PENDING: 'pending',
+    SUCCESS: 'success',
+    FAILED: 'failed'
+};

@@ -1,4 +1,4 @@
-# OC Generics
+# OC Kickstart
 
 This is a template application using OCID connect and OC Achievements.
 This project uses NextJS, ExpressJS and PostgreSQL.

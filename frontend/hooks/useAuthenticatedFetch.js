@@ -7,9 +7,21 @@ const useAuthenticatedFetch = () => {
   const { enqueueSnackbar } = useSnackbar();
 
   const fetchWithAuth = async (url, options = {}) => {
-    if (isInitialized && !authState?.isAuthenticated) {
+    // Don't make any requests until auth is initialized
+    if (!isInitialized) {
+      throw new Error("Authentication not initialized");
+    }
+
+    // Don't make requests if not authenticated
+    if (!authState?.isAuthenticated) {
       enqueueSnackbar("User is not authenticated", { variant: "error" });
       throw new Error("User is not authenticated");
+    }
+
+    // Don't make requests without a token
+    if (!authState?.idToken) {
+      enqueueSnackbar("Authentication token is missing", { variant: "error" });
+      throw new Error("Authentication token is missing");
     }
 
     return fetchWithAuthToken(url, options, authState.idToken);

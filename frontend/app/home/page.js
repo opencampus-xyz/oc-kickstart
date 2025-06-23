@@ -97,7 +97,7 @@ export default function Home() {
     fetchListings();
   }, [isRegisteredUser, searchTags, page, searchStatus]);
 
-  const searchParamsEffect = useMemo(() => {
+  useEffect(() => {
     const tagsParam = searchParams.get('tags');
     if (tagsParam === null) {
       if (searchTags.length > 0) {
@@ -106,7 +106,9 @@ export default function Home() {
     } else {
       const tagIds = tagsParam ? tagsParam.split(',') : [];
       const activeTagIds = tagIds.filter(id => tagsKeyById[id]);
+      
       setSearchTags(activeTagIds);
+      
       if (activeTagIds.length !== tagIds.length) {
         const params = new URLSearchParams(window.location.search);
         if (activeTagIds.length >= 1) {
@@ -115,15 +117,11 @@ export default function Home() {
           params.delete('tags');
         }
         if (params.toString()) {
-          router.push(`/home${params.toString() ? `?${params.toString()}` : ''}`);
+          router.push(`/home?${params.toString()}`);
         }
       }
     }
-  }, [searchParams, tagsKeyById, searchTags, router]);
-
-  useEffect(() => {
-    searchParamsEffect;
-  }, [searchParamsEffect]);
+  }, [searchParams, tagsKeyById, router]);
 
   const handleChangeTags = (e) => {
     const newTags = e.target.value;

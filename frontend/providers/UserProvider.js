@@ -22,27 +22,47 @@ export const UserProvider = ({ children }) => {
 
   const fetchWithAuth = useAuthenticatedFetch();
   const getUser = async () => {
-    if (isAuthInitialized) {
-      if (authState.isAuthenticated) {
+    if (!isAuthInitialized) {
+      return;
+    }
+
+    if (!authState?.isAuthenticated) {
+      setUser({
+        isMasterAdmin: false,
+        isAdmin: false,
+        isRegisteredUser: false,
+        user: null,
+      });
+      setIsInitialized(true);
+      return;
+    }
+
         try {
           const response = await fetchWithAuth("/user", {
             method: "GET",
           });
           const data = await response.json();
           setUser(data);
-          setIsInitialized(true);
         } catch (error) {
+      if (authState?.isAuthenticated) {
           enqueueSnackbar("Error fetching user", {
             variant: "error",
           });
         }
-      }
+      setUser({
+        isMasterAdmin: false,
+        isAdmin: false,
+        isRegisteredUser: false,
+        user: null,
+      });
+    } finally {
+      setIsInitialized(true);
     }
   };
 
   useEffect(() => {
     getUser();
-  }, [authState]);
+  }, [isAuthInitialized, authState?.isAuthenticated]);
 
   // Add effect to handle automatic redirects for unregistered users
   useEffect(() => {

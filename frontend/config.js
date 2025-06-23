@@ -1,5 +1,5 @@
 export const config = {
-  appTitle: "OC Generics",
+  appTitle: "OC Kickstart",
   logoUrl: "/assets/logo.svg",
   theme: "light",
 };
