@@ -34,16 +34,12 @@ export const ACHIEVEMENT_TYPES = [
 
 export const LISTING_TRIGGER_MODES = ["manual", "auto"];
 
-export const UserListingStatus = {
-    PENDING: 'pending',
-    DECLINED: 'declined',
-    APPROVED: 'approved',
-    COMPLETED: 'completed'
-};
-
 export const USER_LISTING_STATUSES = [
-    ...Object.values(UserListingStatus),
-    "all"
+    'pending',
+    'declined',
+    'approved',
+    'completed',
+    'all' //For search only
 ];
 
 // Database-related constants

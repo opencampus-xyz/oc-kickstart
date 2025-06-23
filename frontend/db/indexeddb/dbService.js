@@ -301,7 +301,7 @@ export class DBService {
         }
 
         const signupCount = listing.signups.filter(([_, status]) => 
-            status === UserListingStatus.APPROVED || status === UserListingStatus.PENDING
+            status === 'pending' || status === 'approved'
         ).length;
         
         if (listing.sign_ups_limit && signupCount >= listing.sign_ups_limit) {
@@ -311,7 +311,7 @@ export class DBService {
         const signup = {
             user_id: userId,
             listing_id: listingId,
-            status: UserListingStatus.PENDING,
+            status: 'pending',
             created_ts: new Date().toISOString(),
             last_modified_ts: new Date().toISOString()
         };
@@ -320,12 +320,12 @@ export class DBService {
         
         user.signups.push({ 
             listing_id: listingId, 
-            status: UserListingStatus.PENDING, 
+            status: 'pending', 
             created_ts: signup.created_ts 
         });
         await this.IndexedDBHelper.put(userStore, user);
 
-        listing.signups.push([userId, UserListingStatus.PENDING]);
+        listing.signups.push([userId, 'pending']);
         await this.IndexedDBHelper.put(listingStore, listing);
 
         return signup;
@@ -561,7 +561,7 @@ export class DBService {
                 await this.IndexedDBHelper.put(listingStore, updatedListing);
             }
 
-            if (listing.trigger_mode === ListingTriggerMode.AUTO && status === UserListingStatus.COMPLETED) {
+            if (listing.trigger_mode === ListingTriggerMode.AUTO && status === 'completed') {
                 await this.createVCIssueJob(userId, listingId);
             }
         }
@@ -756,7 +756,7 @@ export class DBService {
                                         if (signupCursor) {
                                             const signup = signupCursor.value;
                                             if (signup.listing_id === listing.id && 
-                                                (signup.status === UserListingStatus.APPROVED || signup.status === UserListingStatus.PENDING || signup.status === UserListingStatus.COMPLETED)) {
+                                                (signup.status === 'pending' || signup.status === 'approved' || signup.status === 'completed')) {
                                                 count++;
                                             }
                                             signupCursor.continue();
@@ -776,9 +776,9 @@ export class DBService {
                                     fallbackCount = listing.signups.filter((signup) => {
                                         if (Array.isArray(signup) && signup.length >= 2) {
                                             const status = signup[1];
-                                            return status === UserListingStatus.APPROVED || status === UserListingStatus.PENDING || status === UserListingStatus.COMPLETED;
+                                            return status === 'pending' || status === 'approved' || status === 'completed';
                                         } else if (signup && typeof signup === 'object' && signup.status) {
-                                            return signup.status === UserListingStatus.APPROVED || signup.status === UserListingStatus.PENDING || signup.status === UserListingStatus.COMPLETED;
+                                            return signup.status === 'pending' || signup.status === 'approved' || signup.status === 'completed';
                                         }
                                         return false;
                                     }).length;
@@ -869,7 +869,7 @@ export class DBService {
                         const cursor = event.target.result;
                         if (cursor) {
                             const signup = cursor.value;
-                            if (signup.user_id === user.user.id && signup.status === UserListingStatus.COMPLETED) {
+                            if (signup.user_id === user.user.id && signup.status === 'completed') {
                                 const listingRequest = listingsStore.get(signup.listing_id);
                                 listingRequest.onsuccess = () => {
                                     const listing = listingRequest.result;
