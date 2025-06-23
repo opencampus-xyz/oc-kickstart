@@ -155,7 +155,7 @@ export const AppProvider = ({ children }) => {
     { kind: "header", title: "Master Admin" },
     { segment: "admin-configs", title: "Admin Configs", icon: <Tune /> },
     ...(isDemoUser ? [
-      { segment: "configuration", title: "Configuration", icon: <Settings /> },
+      { segment: "demo/configuration", title: "Configuration", icon: <Settings /> },
     ] : []),
   ];
 
