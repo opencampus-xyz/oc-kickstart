@@ -28,10 +28,6 @@ export default function ConfigEditorPage() {
       router.push("/home");
       return;
     }
-    
-    if (!isMasterAdmin) {
-      router.push("/home");
-    }
   }, [isMasterAdmin, router, isInitialized]);
 
   useEffect(() => {
@@ -48,21 +44,12 @@ export default function ConfigEditorPage() {
         const config = JSON.parse(storedConfig);
         setFormData(config);
       } else {
-        const defaultConfig = {
-          appTitle: "OC Kickstart",
-          logoUrl: "/assets/logo.svg",
-          theme: "light"
-        };
-        setFormData(defaultConfig);
+        setFormData(configManager.getDefaultConfig());
       }
     } catch (error) {
       console.error('Failed to load configuration:', error);
       setMessage({ type: 'error', text: `Failed to load configuration: ${error.message}` });
-      setFormData({
-        appTitle: "OC Kickstart",
-        logoUrl: "/assets/logo.svg",
-        theme: "light"
-      });
+      setFormData(configManager.getDefaultConfig());
     } finally {
       setLoading(false);
     }
@@ -108,12 +95,7 @@ export default function ConfigEditorPage() {
   const handleReset = async () => {
     try {
       localStorage.removeItem('appConfig');
-      const defaultConfig = {
-        appTitle: "OC Kickstart",
-        logoUrl: "/assets/logo.svg",
-        theme: "light"
-      };
-      setFormData(defaultConfig);
+      setFormData(configManager.getDefaultConfig());
       setMessage({ type: 'info', text: 'Configuration reset to default values.' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to reset configuration' });
