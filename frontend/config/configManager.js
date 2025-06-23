@@ -24,6 +24,7 @@ class ConfigManager {
                 }
             }
         }
+        return defaultConfig;
     }
 
     getDefaultConfig() {
