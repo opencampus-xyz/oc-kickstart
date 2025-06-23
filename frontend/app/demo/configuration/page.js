@@ -2,10 +2,11 @@
 import { useEffect, useState } from 'react';
 import { Button, TextField, Typography, Paper, Box, Alert, Chip, Divider, Stack } from '@mui/material';
 import { Save, Download, Refresh, Info } from '@mui/icons-material';
-import { isDemoMode } from '../../utils';
+import { isDemoMode } from '../../../utils';
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { useUser } from "@/providers/UserProvider";
 import { useRouter } from "next/navigation";
+import { configManager } from '../../../config/configManager';
 
 export default function ConfigEditorPage() {
   const [formData, setFormData] = useState({
@@ -23,7 +24,7 @@ export default function ConfigEditorPage() {
   useEffect(() => {
     if (!isInitialized) return;
     
-    if (!isDemoMode()) {
+    if (!isDemoMode() || !isMasterAdmin) {
       router.push("/home");
       return;
     }
@@ -42,13 +43,11 @@ export default function ConfigEditorPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      // In demo mode, load from localStorage
       const storedConfig = localStorage.getItem('appConfig');
       if (storedConfig) {
         const config = JSON.parse(storedConfig);
         setFormData(config);
       } else {
-        // Use default config if nothing in localStorage
         const defaultConfig = {
           appTitle: "OC Kickstart",
           logoUrl: "/assets/logo.svg",
@@ -118,36 +117,6 @@ export default function ConfigEditorPage() {
       setMessage({ type: 'info', text: 'Configuration reset to default values.' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to reset configuration' });
-    }
-  };
-
-  const handleExport = () => {
-    try {
-      // Generate JavaScript code instead of JSON
-      const jsContent = `export const config = {
-  appTitle: "${formData.appTitle}",
-  logoUrl: "${formData.logoUrl}",
-  theme: "${formData.theme}"
-};
-
-export default config;`;
-      
-      const configBlob = new Blob([jsContent], {
-        type: 'application/javascript'
-      });
-      
-      const url = URL.createObjectURL(configBlob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'config.js';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      
-      setMessage({ type: 'success', text: 'Configuration exported as config.js' });
-    } catch (error) {
-      setMessage({ type: 'error', text: 'Failed to export configuration' });
     }
   };
 
@@ -257,7 +226,7 @@ export default config;`;
             <Button
               variant="outlined"
               startIcon={<Download />}
-              onClick={handleExport}
+              onClick={() => configManager.exportConfig(formData)}
             >
               Export Config
             </Button>

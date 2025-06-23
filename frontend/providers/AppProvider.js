@@ -155,7 +155,9 @@ export const AppProvider = ({ children }) => {
   const masterAdminNavigation = [
     { kind: "header", title: "Master Admin" },
     { segment: "admin-configs", title: "Admin Configs", icon: <Tune /> },
-    { segment: "configuration", title: "Configuration", icon: <Settings /> },
+    ...(isDemoUser ? [
+      { segment: "configuration", title: "Configuration", icon: <Settings /> },
+    ] : []),
   ];
 
   const navigation = [

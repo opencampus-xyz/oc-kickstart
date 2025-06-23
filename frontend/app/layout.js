@@ -6,7 +6,6 @@ const config = getConfigSync();
 
 export const metadata = {
   title: config.appTitle,
-  description: "OC Achievement Management System",
   icons: {
     icon: getLogoUrl(config.logoUrl),
   },

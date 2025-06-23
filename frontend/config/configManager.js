@@ -15,7 +15,7 @@ class ConfigManager {
             return JSON.parse(storedConfig);
         }
         
-        return this.getDefaultConfig();
+        return null;
     }
 
     getDefaultConfig() {
