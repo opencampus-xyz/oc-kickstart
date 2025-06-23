@@ -7,11 +7,14 @@ class ConfigManager {
     }
 
     getConfig() {
-        return this.getConfigFromLocalStorage();
+        if (isDemoMode()) {
+            return this.getConfigFromLocalStorage();
+        }
+        return defaultConfig;
     }
 
     getConfigFromLocalStorage() {
-        if (typeof window !== 'undefined' && isDemoMode()) {
+        if (typeof window !== 'undefined') {
             const storedConfig = localStorage.getItem(this.configKey);
             if (storedConfig) {
                 try {
@@ -21,8 +24,6 @@ class ConfigManager {
                 }
             }
         }
-        
-        return defaultConfig;
     }
 
     getDefaultConfig() {

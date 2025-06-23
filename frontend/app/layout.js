@@ -2,7 +2,7 @@ import configManager from "../config/configManager";
 import Providers from "@/providers";
 import "./globals.css";
 
-const config = configManager.getConfigFromLocalStorage();
+const config = configManager.getConfig();
 
 export const metadata = {
   title: config.appTitle,
