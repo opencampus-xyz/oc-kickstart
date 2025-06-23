@@ -7,6 +7,7 @@ import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { useUser } from "@/providers/UserProvider";
 import { useRouter } from "next/navigation";
 import { configManager } from '../../../config/configManager';
+import { getConfigSync } from '../../../config/configUtils';
 
 export default function ConfigEditorPage() {
   const [formData, setFormData] = useState({
@@ -39,13 +40,8 @@ export default function ConfigEditorPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const storedConfig = localStorage.getItem('appConfig');
-      if (storedConfig) {
-        const config = JSON.parse(storedConfig);
-        setFormData(config);
-      } else {
-        setFormData(configManager.getDefaultConfig());
-      }
+      const config = await configManager.getConfig() || getConfigSync();
+      setFormData(config);
     } catch (error) {
       console.error('Failed to load configuration:', error);
       setMessage({ type: 'error', text: `Failed to load configuration: ${error.message}` });
@@ -79,7 +75,7 @@ export default function ConfigEditorPage() {
     setMessage(null);
     
     try {
-      localStorage.setItem('appConfig', JSON.stringify(formData));
+      const result = await configManager.saveConfig(formData);
       setMessage({
         type: 'success',
         text: 'Configuration saved to localStorage (Demo mode).'
@@ -94,8 +90,8 @@ export default function ConfigEditorPage() {
 
   const handleReset = async () => {
     try {
-      localStorage.removeItem('appConfig');
-      setFormData(configManager.getDefaultConfig());
+      const defaultConfig = configManager.resetConfig();
+      setFormData(defaultConfig);
       setMessage({ type: 'info', text: 'Configuration reset to default values.' });
     } catch (error) {
       setMessage({ type: 'error', text: 'Failed to reset configuration' });
@@ -110,11 +106,6 @@ export default function ConfigEditorPage() {
         </Box>
       </ProtectedRoute>
     );
-  }
-
-  // Don't render if not in demo mode
-  if (!isDemoMode()) {
-    return null;
   }
 
   return (
