@@ -17,13 +17,11 @@ export function getConfigSync() {
         if (storedConfig) {
             try {
                 const parsed = JSON.parse(storedConfig);
-                console.log('[getConfigSync] Demo mode: returning config from localStorage', parsed);
                 return parsed;
             } catch (e) {
                 console.warn('Failed to parse config from localStorage:', e);
             }
         }
-        console.log('[getConfigSync] Demo mode: localStorage empty, returning defaultConfig from config.js', defaultConfig);
     }
     return defaultConfig;
 }

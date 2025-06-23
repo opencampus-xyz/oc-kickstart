@@ -25,7 +25,6 @@ class IndexedDBStrategy extends FetchStrategy {
                 initDatabase(),
                 dbService.initPromise
             ]);
-            console.log('IndexedDB initialized successfully');
         } catch (error) {
             console.error('Failed to initialize IndexedDB:', error);
             throw error;
