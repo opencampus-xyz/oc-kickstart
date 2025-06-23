@@ -7,7 +7,6 @@ import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { useUser } from "@/providers/UserProvider";
 import { useRouter } from "next/navigation";
 import { configManager } from '../../../config/configManager';
-import { getConfigSync } from '../../../config/configUtils';
 
 export default function ConfigEditorPage() {
   const [formData, setFormData] = useState({
@@ -40,7 +39,7 @@ export default function ConfigEditorPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const config = await configManager.getConfig() || getConfigSync();
+      const config = await configManager.getConfig();
       setFormData(config);
     } catch (error) {
       console.error('Failed to load configuration:', error);

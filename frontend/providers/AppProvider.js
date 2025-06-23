@@ -1,6 +1,6 @@
 import { Loading } from "@/components/common/Loading";
 import { DemoModal } from "@/components/demo/DemoModal";
-import { getConfigSync } from "../config/configUtils";
+import configManager from "../config/configManager";
 import dbService from "@/db/indexeddb/dbService";
 import {
   Assignment,
@@ -26,7 +26,6 @@ import React from "react";
 import { useUser } from "./UserProvider";
 import { useState, useEffect } from "react";
 import { isDemoMode } from '../utils';
-import { getLogoUrl } from '../config/configUtils';
 
 const Logout = () => {
   const { ocAuth, authState } = useOCAuth();
@@ -57,7 +56,7 @@ export const AppProvider = ({ children }) => {
   const [clientConfig, setClientConfig] = useState(null);
 
   useEffect(() => {
-    setClientConfig(getConfigSync());
+    setClientConfig(configManager.getConfigFromLocalStorage());
   }, []);
 
   useEffect(() => {
@@ -87,7 +86,7 @@ export const AppProvider = ({ children }) => {
   const CustomLogo = () => (
     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
       <img
-        src={getLogoUrl(clientConfig.logoUrl)}
+        src={configManager.getLogoUrl(clientConfig.logoUrl)}
         width={20}
         height={20}
         alt={clientConfig.appTitle}

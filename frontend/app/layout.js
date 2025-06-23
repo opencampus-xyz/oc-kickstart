@@ -1,13 +1,13 @@
-import { getConfigSync, getLogoUrl } from "../config/configUtils";
+import configManager from "../config/configManager";
 import Providers from "@/providers";
 import "./globals.css";
 
-const config = getConfigSync();
+const config = configManager.getConfigFromLocalStorage();
 
 export const metadata = {
   title: config.appTitle,
   icons: {
-    icon: getLogoUrl(config.logoUrl),
+    icon: configManager.getLogoUrl(config.logoUrl),
   },
 };
 

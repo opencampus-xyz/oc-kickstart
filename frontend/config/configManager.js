@@ -1,4 +1,5 @@
 import defaultConfig from '../config.js';
+import { isDemoMode } from '../utils';
 
 class ConfigManager {
     constructor() {
@@ -10,16 +11,34 @@ class ConfigManager {
     }
 
     getConfigFromLocalStorage() {
-        const storedConfig = localStorage.getItem(this.configKey);
-        if (storedConfig) {
-            return JSON.parse(storedConfig);
+        if (typeof window !== 'undefined' && isDemoMode()) {
+            const storedConfig = localStorage.getItem(this.configKey);
+            if (storedConfig) {
+                try {
+                    return JSON.parse(storedConfig);
+                } catch (e) {
+                    console.warn('Failed to parse config from localStorage:', e);
+                }
+            }
         }
         
-        return null;
+        return defaultConfig;
     }
 
     getDefaultConfig() {
         return defaultConfig;
+    }
+
+    getLogoUrl(logoUrl) {
+        if (!logoUrl) {
+            return defaultConfig.logoUrl;
+        }
+        
+        if (logoUrl.startsWith('/')) {
+            return logoUrl;
+        }
+        
+        return defaultConfig.logoUrl;
     }
 
     async saveConfig(config) {
