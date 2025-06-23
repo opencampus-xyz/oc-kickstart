@@ -1,6 +1,7 @@
 import { Alert, Divider, TextField } from "@mui/material";
 import { LoginButton } from "@opencampus/ocid-connect-js";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+
 import styles from "../../app/login/login.module.css";
 
 
@@ -55,10 +56,10 @@ export default function DemoLoginPage({isInvalidLogin, isAdminLogin, originUrl})
               id="email"
               label="Email"
               value={email}
-              onChange={onChange}
               sx={{ minWidth: "300px" }}
               error={!!error}
               helperText={error}
+              disabled={isEmailLocked}
             />
             <LoginButton state={{ email, path: "signup", originUrl }} />
           </div>
