@@ -6,7 +6,7 @@ import { isDemoMode } from '../../../utils';
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { useUser } from "@/providers/UserProvider";
 import { useRouter } from "next/navigation";
-import { configManager } from '../../../config/configManager';
+import configManager from '../../../config/configManager';
 
 export default function ConfigEditorPage() {
   const [formData, setFormData] = useState({
