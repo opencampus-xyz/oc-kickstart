@@ -39,7 +39,7 @@ export default function ConfigEditorPage() {
   const loadConfig = async () => {
     setLoading(true);
     try {
-      const config = await configManager.getConfig();
+      const config = configManager.getConfig();
       setFormData(config);
     } catch (error) {
       console.error('Failed to load configuration:', error);

@@ -6,7 +6,7 @@ class ConfigManager {
         this.configKey = 'appConfig';
     }
 
-    async getConfig() {
+    getConfig() {
         return this.getConfigFromLocalStorage();
     }
 
