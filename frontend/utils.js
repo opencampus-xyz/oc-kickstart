@@ -67,11 +67,6 @@ class FetchStrategyFactory {
         if (!this._strategy) {
             const mode = process.env.NEXT_PUBLIC_DB_MODE || 'backend';
             
-            if (typeof window === 'undefined') {
-                this._strategy = new SQLStrategy();
-                return this._strategy;
-            }
-            
             try {
                 switch (mode) {
                     case 'indexeddb':
@@ -103,30 +98,15 @@ class FetchStrategyFactory {
     }
 }
 
-let factory = null;
-let strategy = null;
-
-if (typeof window !== 'undefined') {
-    factory = FetchStrategyFactory.getInstance();
-    strategy = factory.getStrategy();
-}
+const factory = FetchStrategyFactory.getInstance();
+const strategy = factory.getStrategy();
 
 export const fetchWithAuthToken = async (url, options = {}, authToken) => {
-    if (typeof window === 'undefined') {
-        return sqlFetchWithAuthToken(url, options, authToken);
-    }
-    return strategy.fetchWithAuthToken(url, options, authToken);
+    return sqlFetchWithAuthToken(url, options, authToken);
 };
 
 export const publicFetch = async (url, options = {}) => {
-    if (typeof window === 'undefined') {
-        return sqlPublicFetch(url, options);
-    }
-    return strategy.publicFetch(url, options);
-};
-
-export const isIndexedDBMode = () => {
-    return FetchStrategyFactory.isIndexedDBMode();
+    return sqlPublicFetch(url, options);
 };
 
 export const isDemoMode = () => process.env.NEXT_PUBLIC_DEMO_MODE === 'true';
