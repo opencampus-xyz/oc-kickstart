@@ -56,7 +56,7 @@ export const AppProvider = ({ children }) => {
   const [clientConfig, setClientConfig] = useState(null);
 
   useEffect(() => {
-    setClientConfig(configManager.getConfigFromLocalStorage());
+    setClientConfig(configManager.getConfig());
   }, []);
 
   useEffect(() => {

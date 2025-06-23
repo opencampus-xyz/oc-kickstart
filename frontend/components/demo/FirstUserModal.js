@@ -23,7 +23,7 @@ import {
 } from "@mui/icons-material";
 import configManager from "../../config/configManager";
 
-const config = configManager.getConfigFromLocalStorage();
+const config = configManager.getConfig();
 
 export const FirstUserModal = ({ open, onClose }) => {
   const handleClose = () => {

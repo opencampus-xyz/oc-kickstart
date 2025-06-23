@@ -25,7 +25,7 @@ import {
 import configManager from "../../config/configManager";
 import { useState } from "react";
 
-const config = configManager.getConfigFromLocalStorage();
+const config = configManager.getConfig();
 
 export const DemoModal = ({ open, onClose }) => {
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);

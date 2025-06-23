@@ -28,6 +28,7 @@ export default function ConfigEditorPage() {
       router.push("/home");
       return;
     }
+    loadConfig();
   }, [isMasterAdmin, router, isInitialized]);
 
   useEffect(() => {
