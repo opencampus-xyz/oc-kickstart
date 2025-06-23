@@ -15,6 +15,9 @@ export default function Login() {
   const originUrl = params.get("originUrl") ? decodeURIComponent(params.get("originUrl")) : null;
   const demoMode = isDemoMode();
 
+  const isInvalidLogin = params.get("invalidLogin") === "true";
+  const isAdminLogin = params.get("adminLogin") === "true";
+
   useEffect(() => {
     if (isInitialized && authState?.isAuthenticated) {
       router.push(originUrl ?? "/redirect");
@@ -26,5 +29,4 @@ export default function Login() {
   } else {
     return <LoginPage isInvalidLogin={isInvalidLogin} isAdminLogin={isAdminLogin} originUrl={originUrl} />
   }
-
 }
