@@ -2,6 +2,7 @@ import { Loading } from "@/components/common/Loading";
 import { DemoModal } from "@/components/demo/DemoModal";
 import { config } from "@/config";
 import dbService from "@/db/indexeddb/dbService";
+import VCIssuerService from "@/db/indexeddb/vc-issuer";
 import {
   Assignment,
   EmojiEvents,
@@ -67,6 +68,18 @@ export const AppProvider = ({ children }) => {
       }
     }
   }, [isDemoUser]);
+
+  useEffect(() => {
+    dbService.ensureInitialized().then(() => {
+      const vcIssuer = VCIssuerService.getInstance();
+      vcIssuer.startService(
+        Math.max(
+          30000,
+          (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000
+        )
+      );
+    });
+  }, []);
 
   const handleCloseDemoModal = () => {
     localStorage.setItem('demo_modal_acknowledged', 'true');

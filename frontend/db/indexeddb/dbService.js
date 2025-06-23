@@ -82,13 +82,6 @@ export class DBService {
     async init() {
         this.db = await initDatabase();
         
-        try {
-            const vcIssuer = VCIssuerService.getInstance();
-            vcIssuer.startService(Math.max(30000, (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000));
-        } catch (error) {
-            console.error('Failed to start VC issuer service:', error);
-        }
-        
         return this.db;
     }
 
