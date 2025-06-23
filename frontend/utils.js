@@ -102,11 +102,11 @@ const factory = FetchStrategyFactory.getInstance();
 const strategy = factory.getStrategy();
 
 export const fetchWithAuthToken = async (url, options = {}, authToken) => {
-    return sqlFetchWithAuthToken(url, options, authToken);
+    return strategy.fetchWithAuthToken(url, options, authToken);
 };
 
 export const publicFetch = async (url, options = {}) => {
-    return sqlPublicFetch(url, options);
+    return strategy.publicFetch(url, options);
 };
 
 export const isDemoMode = () => process.env.NEXT_PUBLIC_DEMO_MODE === 'true';

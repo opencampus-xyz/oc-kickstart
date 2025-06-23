@@ -31,12 +31,6 @@ export default function ConfigEditorPage() {
     loadConfig();
   }, [isMasterAdmin, router, isInitialized]);
 
-  useEffect(() => {
-    if (isMasterAdmin && isInitialized && isDemoMode()) {
-      loadConfig();
-    }
-  }, [isMasterAdmin, isInitialized]);
-
   const loadConfig = async () => {
     setLoading(true);
     try {
