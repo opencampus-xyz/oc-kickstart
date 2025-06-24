@@ -12,7 +12,7 @@ class VCIssuer {
   async queryPendingVCJobs() {
     await dbService.initPromise;
     
-    if (!dbService.db) {
+    if (!dbService.db) {1
       return [];
     }
     
@@ -48,7 +48,6 @@ class VCIssuer {
 
   async issueVC(job) {
     const { id: jobId, retry_count, payload } = job;
-
     let result = {};
     try {
       const response = await fetch(this.ocaIssuanceUrl, {
@@ -62,27 +61,32 @@ class VCIssuer {
 
       result.status_code = response.status;
       result.status_text = response.statusText;
-      result.data = await response.json();
+      
+      try {
+        result.data = await response.json();
+      } catch (jsonError) {
+        console.error(`[VCIssuer] Failed to parse JSON response:`, jsonError);
+        result.data = null;
+      }
     } catch (error) {
       result.error = error.message;
-      console.error('VC issuance error:', error);
     }
 
     try {
       if (result.status_code === 200) {
+        await this.updateVCJobStatus(jobId, VcIssueJobStatus.SUCCESS);
+      } else if (result.status_code === 400 && result.data?.error?.subType === 'DUPLICATE_ISSUANCE_ERROR') {
         await this.updateVCJobStatus(jobId, VcIssueJobStatus.SUCCESS);
       } else if (result.status_code !== 500) {
         await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
       } else if (result.status_code === 500) {
         if (retry_count < this.maxRetries) {
           await this.incrementVCJobRetryCount(jobId);
-        } else {
           await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
-          await this.incrementVCJobRetryCount(jobId);
         }
       }
     } catch (error) {
-      console.error('Error updating VC job:', error);
+      console.error('[VCIssuer] Error updating VC job status:', error);
     }
 
     return result;
@@ -106,7 +110,7 @@ class VCIssuer {
         const job = getRequest.result;
         if (job) {
           job.status = status;
-          job.updated_at = new Date().toISOString();
+          job.last_modified_ts = new Date().toISOString();
           
           const updateRequest = store.put(job);
           updateRequest.onsuccess = () => resolve(updateRequest.result);
@@ -144,7 +148,7 @@ class VCIssuer {
         const job = getRequest.result;
         if (job) {
           job.retry_count = (job.retry_count || 0) + 1;
-          job.updated_at = new Date().toISOString();
+          job.last_modified_ts = new Date().toISOString();
           
           const updateRequest = store.put(job);
           updateRequest.onsuccess = () => resolve(updateRequest.result);
@@ -175,7 +179,6 @@ class VCIssuer {
       const results = await Promise.allSettled(
         pendingVCJobs.map(async (job) => await this.issueVC(job))
       );
-      
       
     } catch (error) {
       console.error('Error running VC issuer:', error);

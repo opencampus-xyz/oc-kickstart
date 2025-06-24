@@ -132,7 +132,6 @@ export function createAdminConfigsDocument(configData) {
     return {
         id: 'admin_config',
         admin_ocids: configData.admin_ocids || [],
-        isMasterAdmin: configData.isMasterAdmin || false,
     };
 }
 

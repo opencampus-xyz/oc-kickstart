@@ -2,7 +2,6 @@ import { fetchWithAuthToken as indexedFetchWithAuthToken, publicFetch as indexed
 import { fetchWithAuthToken as sqlFetchWithAuthToken, publicFetch as sqlPublicFetch } from './sqlUtils';
 import { initDatabase } from './db/indexeddb/DBsetup';
 import dbService from './db/indexeddb/dbService';
-import VCIssuerService from './db/indexeddb/vc-issuer.js';
 
 class FetchStrategy {
     async fetchWithAuthToken(url, options, authToken) {
@@ -26,14 +25,6 @@ class IndexedDBStrategy extends FetchStrategy {
                 initDatabase(),
                 dbService.initPromise
             ]);
-            
-            const vcIssuer = VCIssuerService.getInstance();
-            vcIssuer.startService(
-                Math.max(
-                    30000,
-                    (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000
-                )
-            );
         } catch (error) {
             console.error('Failed to initialize IndexedDB:', error);
             throw error;
