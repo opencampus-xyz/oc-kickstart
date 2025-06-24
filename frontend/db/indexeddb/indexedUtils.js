@@ -71,7 +71,6 @@ const getTokenFromAuthHeader = (authToken) => {
 
 export const fetchWithAuthToken = async (url, options = {}, authToken) => {
     try {
-        // await dbService.initPromise;
 
         const token = getTokenFromAuthHeader(authToken);
         
