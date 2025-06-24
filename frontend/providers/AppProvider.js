@@ -1,8 +1,6 @@
 import { Loading } from "@/components/common/Loading";
 import { DemoModal } from "@/components/demo/DemoModal";
 import configManager from "../config/configManager";
-import dbService from "@/db/indexeddb/dbService";
-import VCIssuerService from "@/db/indexeddb/vc-issuer";
 import {
   Assignment,
   EmojiEvents,
@@ -21,12 +19,11 @@ import { createTheme } from "@mui/material/styles";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { DashboardLayout } from "@toolpad/core";
 import { NextAppProvider } from "@toolpad/core/nextjs";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { useUser } from "./UserProvider";
 import { useState, useEffect } from "react";
-import { isDemoMode } from '../utils';
+import { isDemoMode } from '../db/utils';
 
 const Logout = () => {
   const { ocAuth, authState } = useOCAuth();
@@ -52,9 +49,9 @@ const Logout = () => {
 export const AppProvider = ({ children }) => {
   const { authState } = useOCAuth();
   const { isRegisteredUser, isAdmin, isMasterAdmin, user } = useUser();
-  const [isDemoUser, setIsDemoUser] = useState(isDemoMode());
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [clientConfig, setClientConfig] = useState(null);
+  const isDemoUser = isDemoMode()
 
   useEffect(() => {
     setClientConfig(configManager.getConfig());
@@ -68,18 +65,6 @@ export const AppProvider = ({ children }) => {
       }
     }
   }, [isDemoUser]);
-
-  useEffect(() => {
-    dbService.ensureInitialized().then(() => {
-      const vcIssuer = VCIssuerService.getInstance();
-      vcIssuer.startService(
-        Math.max(
-          30000,
-          (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000
-        )
-      );
-    });
-  }, []);
 
   const handleCloseDemoModal = () => {
     localStorage.setItem('demo_modal_acknowledged', 'true');

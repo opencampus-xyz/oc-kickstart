@@ -1,7 +1,6 @@
-import { fetchWithAuthToken as indexedFetchWithAuthToken, publicFetch as indexedPublicFetch } from './indexedUtils';
-import { fetchWithAuthToken as sqlFetchWithAuthToken, publicFetch as sqlPublicFetch } from './sqlUtils';
-import { initDatabase } from './db/indexeddb/DBsetup';
-import dbService from './db/indexeddb/dbService';
+import dbService from './indexeddb/dbService';
+import { fetchWithAuthToken as indexedFetchWithAuthToken, publicFetch as indexedPublicFetch } from './indexeddb/indexedUtils';
+import { fetchWithAuthToken as sqlFetchWithAuthToken, publicFetch as sqlPublicFetch } from './sql/sqlUtils';
 
 class FetchStrategy {
     async fetchWithAuthToken(url, options, authToken) {
@@ -14,30 +13,13 @@ class FetchStrategy {
 }
 
 class IndexedDBStrategy extends FetchStrategy {
-    constructor() {
-        super();
-        this._initPromise = this._initializeDB();
-    }
-    
-    async _initializeDB() {
-        try {
-            await Promise.all([
-                initDatabase(),
-                dbService.initPromise
-            ]);
-        } catch (error) {
-            console.error('Failed to initialize IndexedDB:', error);
-            throw error;
-        }
-    }
-    
     async fetchWithAuthToken(url, options, authToken) {
-        await this._initPromise;
+        await dbService.init();
         return indexedFetchWithAuthToken(url, options, authToken);
     }
     
     async publicFetch(url, options) {
-        await this._initPromise;
+        await dbService.init();
         return indexedPublicFetch(url, options);
     }
 }

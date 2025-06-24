@@ -6,13 +6,12 @@ import {
     createTagDocument, 
     createAdminConfigsDocument
 } from '@/db/indexeddb/DBsetup';
-import { UserListingStatus, ListingStatus, ListingTriggerMode, VcIssueJobStatus } from '@/constants';
-import VCIssuerService from './vc-issuer.js';
+import {  ListingStatus, ListingTriggerMode, VcIssueJobStatus } from '@/constants';
+import VCIssuerService from './vc-issuer';
 
 export class DBService {
     constructor() {
         this.db = null;
-        this.initPromise = this.init();
     }
 
     get IndexedDBHelper() {
@@ -80,13 +79,16 @@ export class DBService {
     }
 
     async init() {
-        this.db = await initDatabase();
-        
-        return this.db;
-    }
-
-    async ensureInitialized() {
-        await this.initPromise;
+        if(!this.db){
+            this.db = await initDatabase();
+            const vcIssuer = VCIssuerService.getInstance();
+            vcIssuer.startService(
+                Math.max(
+                    30000,
+                    (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000
+                )
+            );
+        }
         if (!this.db) {
             throw new Error('Database failed to initialize');
         }
@@ -130,7 +132,6 @@ export class DBService {
     }
     
     async getUserByOCId(ocId) {
-        await this.ensureInitialized();
         
         const tx = this.IndexedDBHelper.createTransaction(['users', 'admin_configs'], 'readonly');
         const userStore = this.IndexedDBHelper.getStore(tx, 'users');
@@ -485,7 +486,8 @@ export class DBService {
                 ...currentListing,
                 status: newStatus,
                 last_modified_ts: new Date().toISOString(),
-                published_ts: newStatus === 'published' ? new Date().toISOString() : currentListing.published_ts
+                published_ts: newStatus === 'active' ? new Date().toISOString() : currentListing.published_ts,
+                deleted_ts: newStatus === 'deleted' ? new Date().toISOString() : currentListing.deleted_ts
             };
             
             await this.IndexedDBHelper.put(listingStore, updatedListing);
@@ -570,7 +572,7 @@ export class DBService {
     }
 
     async getTags() {
-        await this.ensureInitialized();
+        // await this.ensureInitialized();
 
         const tx = this.IndexedDBHelper.createTransaction(['tags'], 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'tags');
@@ -711,7 +713,7 @@ export class DBService {
     }
 
     async getListings({ page = 0, pageSize = 10, searchText, searchTags, searchStatus, includeUserSignups = false, userId = null, showAllStatuses = false }) {
-        await this.ensureInitialized();
+        // await this.ensureInitialized();
         
         const tx = this.IndexedDBHelper.createTransaction(['listings', 'tags', 'user_listings'], 'readonly');
         const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');

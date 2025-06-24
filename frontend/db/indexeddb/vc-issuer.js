@@ -10,8 +10,6 @@ class VCIssuer {
   }
 
   async queryPendingVCJobs() {
-    await dbService.initPromise;
-    
     if (!dbService.db) {
       return [];
     }

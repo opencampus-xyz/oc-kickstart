@@ -1,5 +1,8 @@
+import { isDemoMode } from '@/db/utils.js';
 import defaultConfig from '../config.js';
-import { isDemoMode } from '../utils';
+
+
+const isClient = typeof window !== 'undefined';
 
 class ConfigManager {
     constructor() {
@@ -7,7 +10,7 @@ class ConfigManager {
     }
 
     getConfig() {
-        if (isDemoMode()) {
+        if (isDemoMode() && isClient) {
             const config = this.getConfigFromLocalStorage();
             if (config) {
                 return config;
@@ -17,6 +20,10 @@ class ConfigManager {
     }
 
     getConfigFromLocalStorage() {
+        if (!isClient) {
+            return null; // localStorage not available on server
+        }
+        
         try {
             const storedConfig = localStorage.getItem(this.configKey);
             if (storedConfig) {
@@ -25,6 +32,7 @@ class ConfigManager {
         } catch (e) {
             console.warn('Failed to get config from localStorage:', e);
         }
+        return null;
     }
 
     getDefaultConfig() {
@@ -44,11 +52,18 @@ class ConfigManager {
     }
 
     async saveConfig(config) {
+        if (!isClient) {
+            throw new Error('Cannot save config on server side');
+        }
         localStorage.setItem(this.configKey, JSON.stringify(config));
         return { success: true, source: 'localStorage' };
     }
 
     exportConfig(config = null) {
+        if (!isClient) {
+            throw new Error('Cannot export config on server side');
+        }
+        
         const configToExport = config || this.getConfigFromLocalStorage() || this.getDefaultConfig();
         
         const jsContent = `export const config = {
@@ -74,6 +89,9 @@ export default config;`;
     }
 
     resetConfig() {
+        if (!isClient) {
+            return this.getDefaultConfig();
+        }
         localStorage.removeItem(this.configKey);
         return this.getDefaultConfig();
     }
