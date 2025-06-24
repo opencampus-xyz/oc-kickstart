@@ -1,7 +1,7 @@
 "use client";
 import { AchievementCard } from "@/components/achievements/AchievementCard";
 import { Loading } from "@/components/common/Loading";
-import { publicFetch } from "@/utils";
+import { publicFetch } from "@/db/utils";
 import { Pagination, Typography } from "@mui/material";
 import { useSearchParams } from "next/navigation";
 import { enqueueSnackbar } from "notistack";

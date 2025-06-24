@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Button, TextField, Typography, Paper, Box, Alert, Chip, Divider, Stack } from '@mui/material';
 import { Save, Download, Refresh, Info } from '@mui/icons-material';
-import { isDemoMode } from '../../../utils';
+import { isDemoMode } from '../../../db/utils';
 import ProtectedRoute from "@/components/common/ProtectedRoute";
 import { useUser } from "@/providers/UserProvider";
 import { useRouter } from "next/navigation";
