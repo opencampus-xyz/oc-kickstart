@@ -3,8 +3,7 @@ import { Loading } from "@/components/common/Loading";
 import { useParams, useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
-import { useOCAuth } from "@opencampus/ocid-connect-js";
-import { publicFetch } from "@/utils";
+import { publicFetch } from "@/db/utils";
 import { ListingDetails } from "@/components/listings/ListingDetails";
 
 export default function ListingPage() {

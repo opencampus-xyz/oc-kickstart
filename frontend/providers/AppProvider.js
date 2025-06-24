@@ -19,12 +19,11 @@ import { createTheme } from "@mui/material/styles";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { DashboardLayout } from "@toolpad/core";
 import { NextAppProvider } from "@toolpad/core/nextjs";
-import Image from "next/image";
 import { useRouter } from "next/navigation";
 import React from "react";
 import { useUser } from "./UserProvider";
 import { useState, useEffect } from "react";
-import { isDemoMode } from '../utils';
+import { isDemoMode } from '../db/utils';
 
 const Logout = () => {
   const { ocAuth, authState } = useOCAuth();
@@ -50,9 +49,9 @@ const Logout = () => {
 export const AppProvider = ({ children }) => {
   const { authState } = useOCAuth();
   const { isRegisteredUser, isAdmin, isMasterAdmin, user } = useUser();
-  const [isDemoUser, setIsDemoUser] = useState(isDemoMode());
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [clientConfig, setClientConfig] = useState(null);
+  const isDemoUser = isDemoMode()
 
   useEffect(() => {
     setClientConfig(configManager.getConfig());

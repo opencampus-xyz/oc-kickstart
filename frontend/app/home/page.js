@@ -5,7 +5,7 @@ import { ListingCard } from "@/components/listings/ListingCard";
 import { USER_LISTING_STATUSES } from "@/constants";
 import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
-import { publicFetch } from "@/utils";
+import { publicFetch } from "@/db/utils";
 import {
   Box,
   Chip,

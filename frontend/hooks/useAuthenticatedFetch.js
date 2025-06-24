@@ -1,6 +1,6 @@
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { useSnackbar } from "notistack";
-import { fetchWithAuthToken } from "../utils";
+import { fetchWithAuthToken } from "../db/utils";
 
 const useAuthenticatedFetch = () => {
   const { authState, isInitialized } = useOCAuth();
