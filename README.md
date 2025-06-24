@@ -54,6 +54,13 @@ to sign up for a developer account and get the API keys and Client ID, which wil
 | NEXT_PUBLIC_SSO_COOKIE_DOMAIN | The Cookie Domain                              |
 | NEXT_PUBLIC_SANDBOX_MODE      | Whether the OCID connect is using sandbox mode |
 | NEXT_PUBLIC_AUTH_CLIENT_ID    | Your Auth Client ID for OCID Connect           |
+| NEXT_PUBLIC_DB_MODE           | Which Database mode you are using (indexeddb/backend)|
+| NEXT_PUBLIC_DEMO_MODE         | Whether you are in DEMO mode(db must be in indexed mode)|
+| NEXT_PUBLIC_JWK_URL           | Not needed if not in Indedexed DB mode         |
+| NEXT_PUBLIC_OCA_ISSUANCE_URL  | Not needed if not in Indedexed DB mode         |
+| NEXT_PUBLIC_OCA_ISSUANCE_API_KEY| Not needed if not in Indedexed DB mode         |
+| NEXT_PUBLIC_VC_ISSUANCE_INTERVAL| Not needed if not in Indedexed DB mode         |
+
 
 ## Remark
 
