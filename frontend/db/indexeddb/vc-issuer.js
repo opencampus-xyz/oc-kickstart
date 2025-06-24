@@ -11,7 +11,7 @@ class VCIssuer {
 
   async queryPendingVCJobs() {
     
-    if (!dbService.db) {1
+    if (!dbService.db) {
       return [];
     }
     
@@ -75,7 +75,7 @@ class VCIssuer {
       if (result.status_code === 200) {
         await this.updateVCJobStatus(jobId, VcIssueJobStatus.SUCCESS);
       } else if (result.status_code === 400 && result.data?.error?.subType === 'DUPLICATE_ISSUANCE_ERROR') {
-        await this.updateVCJobStatus(jobId, VcIssueJobStatus.SUCCESS);
+        await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
       } else if (result.status_code !== 500) {
         await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
       } else if (result.status_code === 500) {
