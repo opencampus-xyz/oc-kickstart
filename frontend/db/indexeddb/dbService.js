@@ -111,7 +111,10 @@ export class DBService {
         if (!this.db) {
             throw new Error('Database failed to initialize');
         }
-        await this._initVCIssuer();
+        
+        if (!this.vcIssuerInitialized) {
+            await this._initVCIssuer();
+        }
     }
 
     // ===== backend/src/index.js endpoints =====
@@ -152,8 +155,6 @@ export class DBService {
     }
     
     async getUserByOCId(ocId) {
-        await this.ensureInitialized();
-        
         const tx = this.IndexedDBHelper.createTransaction(['users', 'admin_configs'], 'readonly');
         const userStore = this.IndexedDBHelper.getStore(tx, 'users');
         const adminStore = this.IndexedDBHelper.getStore(tx, 'admin_configs');
@@ -258,10 +259,10 @@ export class DBService {
                                         
                                         if (vcPendingCount > 0) {
                                             vcStatus = VcIssueJobStatus.PENDING;
-                                        } else if (vcSuccessCount > 0) {
-                                            vcStatus = VcIssueJobStatus.SUCCESS;
                                         } else if (vcFailedCount > 0) {
                                             vcStatus = VcIssueJobStatus.FAILED;
+                                        } else if (vcSuccessCount > 0) {
+                                            vcStatus = VcIssueJobStatus.SUCCESS;
                                         }
                                     }
 
@@ -592,8 +593,6 @@ export class DBService {
     }
 
     async getTags() {
-        await this.ensureInitialized();
-
         const tx = this.IndexedDBHelper.createTransaction(['tags'], 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'tags');
         const index = this.IndexedDBHelper.getIndex(store, 'created_ts');
@@ -733,8 +732,6 @@ export class DBService {
     }
 
     async getListings({ page = 0, pageSize = 10, searchText, searchTags, searchStatus, includeUserSignups = false, userId = null, showAllStatuses = false }) {
-        await this.ensureInitialized();
-        
         const tx = this.IndexedDBHelper.createTransaction(['listings', 'tags', 'user_listings'], 'readonly');
         const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
         const tagStore = this.IndexedDBHelper.getStore(tx, 'tags');
@@ -1352,10 +1349,10 @@ export class DBService {
                                             
                                             if (vcPendingCount > 0) {
                                                 vcStatus = VcIssueJobStatus.PENDING;
-                                            } else if (vcSuccessCount > 0) {
-                                                vcStatus = VcIssueJobStatus.SUCCESS;
                                             } else if (vcFailedCount > 0) {
                                                 vcStatus = VcIssueJobStatus.FAILED;
+                                            } else if (vcSuccessCount > 0) {
+                                                vcStatus = VcIssueJobStatus.SUCCESS;
                                             }
                                         }
                                         
