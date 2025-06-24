@@ -1,4 +1,4 @@
-import dbService from './db/indexeddb/dbService.js';
+import dbService from './dbService.js';
 import * as jose from 'jose';
 
 let jwksCache = null;
@@ -71,7 +71,7 @@ const getTokenFromAuthHeader = (authToken) => {
 
 export const fetchWithAuthToken = async (url, options = {}, authToken) => {
     try {
-        await dbService.initPromise;
+        // await dbService.initPromise;
 
         const token = getTokenFromAuthHeader(authToken);
         

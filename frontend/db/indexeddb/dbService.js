@@ -6,8 +6,8 @@ import {
     createTagDocument, 
     createAdminConfigsDocument
 } from '@/db/indexeddb/DBsetup';
-import { UserListingStatus, ListingStatus, ListingTriggerMode, VcIssueJobStatus } from '@/constants';
-import VCIssuerService from './vc-issuer.js';
+import {  ListingStatus, ListingTriggerMode, VcIssueJobStatus } from '@/constants';
+import VCIssuerService from './vc-issuer';
 import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
 
 const UUID_NAMESPACE = uuidv4();
@@ -506,7 +506,8 @@ export class DBService {
                 ...currentListing,
                 status: newStatus,
                 last_modified_ts: new Date().toISOString(),
-                published_ts: newStatus === 'published' ? new Date().toISOString() : currentListing.published_ts
+                published_ts: newStatus === ListingStatus.ACTIVE ? new Date().toISOString() : currentListing.published_ts,
+                deleted_ts: newStatus === 'deleted' ? new Date().toISOString() : currentListing.deleted_ts
             };
             
             await this.IndexedDBHelper.put(listingStore, updatedListing);
@@ -1224,17 +1225,19 @@ export class DBService {
     }
 
     async isAdmin(ocId) {
+        // Check master admin first (stored in localStorage)
         const isMasterAdmin = await this.isMasterAdmin(ocId);
         if (isMasterAdmin) {
             return true;
         }
         
+        // Check regular admins (stored in IndexedDB)
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
         
         const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
-        return adminConfig?.admin_ocids?.includes(ocId);
+        return adminConfig?.admin_ocids?.includes(ocId) || false;
     }
 
     async makeAdmin(ocId) {

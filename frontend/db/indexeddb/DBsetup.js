@@ -1,6 +1,6 @@
 "use client";
 
-import { UserListingStatus, ListingTriggerMode, ListingStatus, VcIssueJobStatus } from '../../constants.js';
+import { ListingTriggerMode, ListingStatus } from '../../constants.js';
 
 const DB_NAME = 'oc_kickstart_db';
 const DB_VERSION = 2;

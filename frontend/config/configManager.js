@@ -1,3 +1,4 @@
+import { isDemoMode } from '@/db/utils.js';
 import defaultConfig from '../config.js';
 
 
@@ -16,7 +17,7 @@ class ConfigManager {
     }
 
     getConfig() {
-        if (isDemoMode()) {
+        if (isDemoMode() && isClient) {
             const config = this.getConfigFromLocalStorage();
             if (config) {
                 return config;
