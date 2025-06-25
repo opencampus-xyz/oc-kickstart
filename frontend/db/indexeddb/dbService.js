@@ -1390,26 +1390,6 @@ export class DBService {
             };
         });
     }
-
-    async fixFailedVCJobs() {
-        const tx = this.IndexedDBHelper.createTransaction(['vc_issue_jobs'], 'readwrite');
-        const vcJobsStore = this.IndexedDBHelper.getStore(tx, 'vc_issue_jobs');
-        
-        const allJobs = await this.IndexedDBHelper.getAll(vcJobsStore);
-        
-        let fixedCount = 0;
-        for (const job of allJobs) {
-            if (job.status === VcIssueJobStatus.FAILED && job.payload) {
-                job.status = VcIssueJobStatus.SUCCESS;
-                job.last_modified_ts = new Date().toISOString();
-                await this.IndexedDBHelper.put(vcJobsStore, job);
-                fixedCount++;
-            }
-        }
-        
-        return fixedCount;
-    }
-
 }
 
 const dbService = new DBService();
