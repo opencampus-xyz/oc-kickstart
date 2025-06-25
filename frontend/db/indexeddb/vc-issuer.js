@@ -10,6 +10,7 @@ class VCIssuer {
   }
 
   async queryPendingVCJobs() {
+    
     if (!dbService.db) {
       return [];
     }
@@ -46,7 +47,6 @@ class VCIssuer {
 
   async issueVC(job) {
     const { id: jobId, retry_count, payload } = job;
-
     let result = {};
     try {
       const response = await fetch(this.ocaIssuanceUrl, {
@@ -60,27 +60,32 @@ class VCIssuer {
 
       result.status_code = response.status;
       result.status_text = response.statusText;
-      result.data = await response.json();
+      
+      try {
+        result.data = await response.json();
+      } catch (jsonError) {
+        console.error(`[VCIssuer] Failed to parse JSON response:`, jsonError);
+        result.data = null;
+      }
     } catch (error) {
       result.error = error.message;
-      console.error('VC issuance error:', error);
     }
 
     try {
       if (result.status_code === 200) {
         await this.updateVCJobStatus(jobId, VcIssueJobStatus.SUCCESS);
+      } else if (result.status_code === 400 && result.data?.error?.subType === 'DUPLICATE_ISSUANCE_ERROR') {
+        await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
       } else if (result.status_code !== 500) {
         await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
       } else if (result.status_code === 500) {
         if (retry_count < this.maxRetries) {
           await this.incrementVCJobRetryCount(jobId);
-        } else {
           await this.updateVCJobStatus(jobId, VcIssueJobStatus.FAILED);
-          await this.incrementVCJobRetryCount(jobId);
         }
       }
     } catch (error) {
-      console.error('Error updating VC job:', error);
+      console.error('[VCIssuer] Error updating VC job status:', error);
     }
 
     return result;
@@ -104,7 +109,7 @@ class VCIssuer {
         const job = getRequest.result;
         if (job) {
           job.status = status;
-          job.updated_at = new Date().toISOString();
+          job.last_modified_ts = new Date().toISOString();
           
           const updateRequest = store.put(job);
           updateRequest.onsuccess = () => resolve(updateRequest.result);
@@ -142,7 +147,7 @@ class VCIssuer {
         const job = getRequest.result;
         if (job) {
           job.retry_count = (job.retry_count || 0) + 1;
-          job.updated_at = new Date().toISOString();
+          job.last_modified_ts = new Date().toISOString();
           
           const updateRequest = store.put(job);
           updateRequest.onsuccess = () => resolve(updateRequest.result);
@@ -170,10 +175,9 @@ class VCIssuer {
         return;
       }
       
-      const results = await Promise.allSettled(
+      await Promise.allSettled(
         pendingVCJobs.map(async (job) => await this.issueVC(job))
       );
-      
       
     } catch (error) {
       console.error('Error running VC issuer:', error);
@@ -192,23 +196,6 @@ class VCIssuer {
     }
     
     return true;
-  }
-
-  async testIssuer() {
-    if (!this.checkConfiguration()) {
-      console.error('VC Issuer is not properly configured');
-      return;
-    }
-    
-    const { jobs, statusCounts } = await this.checkVCJobsStatus();
-    
-    const pendingJobs = jobs.filter(job => job.status === VcIssueJobStatus.PENDING);
-    
-    if (pendingJobs.length > 0) {
-      await this.run();
-      
-      const { statusCounts: newStatusCounts } = await this.checkVCJobsStatus();
-    }
   }
 
   startService(intervalMs) {
@@ -232,36 +219,6 @@ class VCIssuer {
     }
   }
 
-  async checkVCJobsStatus() {
-    await dbService.initPromise;
-    
-    if (!dbService.db) {
-      console.warn('Database not ready yet, skipping VC jobs status check');
-      return { jobs: [], statusCounts: {} };
-    }
-    
-    return new Promise((resolve, reject) => {
-      const transaction = dbService.db.transaction(['vc_issue_jobs'], 'readonly');
-      const store = transaction.objectStore('vc_issue_jobs');
-      
-      const request = store.getAll();
-      
-      request.onsuccess = () => {
-        const jobs = request.result || [];
-        const statusCounts = jobs.reduce((acc, job) => {
-          acc[job.status] = (acc[job.status] || 0) + 1;
-          return acc;
-        }, {});
-        
-        resolve({ jobs, statusCounts });
-      };
-      
-      request.onerror = (error) => {
-        console.error('Error checking VC jobs status:', error);
-        reject(error);
-      };
-    });
-  }
 }
 
 export class VCIssuerService {

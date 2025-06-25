@@ -91,6 +91,7 @@ class VCIssuer {
     console.log(
       `Issuing ${pendingVCJobs.length} VC jobs at ${new Date().toISOString()}`
     );
+
     await Promise.allSettled(
       pendingVCJobs.map(async (job) => await this.issueVC(job))
     );

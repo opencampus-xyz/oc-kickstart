@@ -71,7 +71,6 @@ const getTokenFromAuthHeader = (authToken) => {
 
 export const fetchWithAuthToken = async (url, options = {}, authToken) => {
     try {
-        // await dbService.initPromise;
 
         const token = getTokenFromAuthHeader(authToken);
         
@@ -200,7 +199,7 @@ export const fetchWithAuthToken = async (url, options = {}, authToken) => {
                 break;
 
             case '/admin/listing/signups/issue-oca':
-                response = await dbService.createVCIssueJob(body.userId, body.listingId);
+                response = await dbService.createVCIssueJobs(body.userId, body.listingId);
                 break;
 
             case '/admin/tag':

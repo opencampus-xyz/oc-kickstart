@@ -8,10 +8,33 @@ import {
 } from '@/db/indexeddb/DBsetup';
 import {  ListingStatus, ListingTriggerMode, VcIssueJobStatus } from '@/constants';
 import VCIssuerService from './vc-issuer';
+import { v4 as uuidv4, v5 as uuidv5 } from 'uuid';
+
+const UUID_NAMESPACE = uuidv4();
 
 export class DBService {
     constructor() {
         this.db = null;
+        this.initPromise = this.init();
+        this.vcIssuerInitialized = false;
+    }
+
+    async _initVCIssuer() {
+        if (this.vcIssuerInitialized) {
+            return;
+        }
+        
+        await this.initPromise;
+        
+        const vcIssuer = VCIssuerService.getInstance();
+        vcIssuer.startService(
+            Math.max(
+                30000,
+                (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000
+            )
+        );
+        
+        this.vcIssuerInitialized = true;
     }
 
     get IndexedDBHelper() {
@@ -60,9 +83,9 @@ export class DBService {
                 });
             },
 
-            getAll: (store, query = null, count = null) => {
+            getAll: (store) => {
                 return new Promise((resolve, reject) => {
-                    const request = query ? store.getAll(query, count) : store.getAll();
+                    const request = store.getAll();
                     request.onsuccess = () => resolve(request.result);
                     request.onerror = () => reject(request.error);
                 });
@@ -79,19 +102,14 @@ export class DBService {
     }
 
     async init() {
-        if(!this.db){
-            this.db = await initDatabase();
-            const vcIssuer = VCIssuerService.getInstance();
-            vcIssuer.startService(
-                Math.max(
-                    30000,
-                    (parseInt(process.env.NEXT_PUBLIC_VC_ISSUER_INTERVAL) || 30) * 1000
-                )
-            );
-        }
-        if (!this.db) {
-            throw new Error('Database failed to initialize');
-        }
+        if(!this.db){	       
+            try{
+                this.db = await initDatabase();	
+                await this._initVCIssuer();
+            }catch(e){
+                throw new Error('Database failed to initialize');	
+            }
+        }	
     }
 
     // ===== backend/src/index.js endpoints =====
@@ -132,7 +150,6 @@ export class DBService {
     }
     
     async getUserByOCId(ocId) {
-        
         const tx = this.IndexedDBHelper.createTransaction(['users', 'admin_configs'], 'readonly');
         const userStore = this.IndexedDBHelper.getStore(tx, 'users');
         const adminStore = this.IndexedDBHelper.getStore(tx, 'admin_configs');
@@ -366,7 +383,6 @@ export class DBService {
             throw new Error('Listing not found');
         }
         
-        // Get tag names and IDs for the listing
         const tagNames = [];
         const tagIds = [];
         
@@ -486,7 +502,7 @@ export class DBService {
                 ...currentListing,
                 status: newStatus,
                 last_modified_ts: new Date().toISOString(),
-                published_ts: newStatus === 'active' ? new Date().toISOString() : currentListing.published_ts,
+                published_ts: newStatus === ListingStatus.ACTIVE ? new Date().toISOString() : currentListing.published_ts,
                 deleted_ts: newStatus === 'deleted' ? new Date().toISOString() : currentListing.deleted_ts
             };
             
@@ -564,7 +580,7 @@ export class DBService {
             }
 
             if (listing.trigger_mode === ListingTriggerMode.AUTO && status === 'completed') {
-                await this.createVCIssueJob(userId, listingId);
+                await this.createVCIssueJobs(userId, listingId);
             }
         }
 
@@ -572,8 +588,6 @@ export class DBService {
     }
 
     async getTags() {
-        // await this.ensureInitialized();
-
         const tx = this.IndexedDBHelper.createTransaction(['tags'], 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'tags');
         const index = this.IndexedDBHelper.getIndex(store, 'created_ts');
@@ -713,8 +727,6 @@ export class DBService {
     }
 
     async getListings({ page = 0, pageSize = 10, searchText, searchTags, searchStatus, includeUserSignups = false, userId = null, showAllStatuses = false }) {
-        // await this.ensureInitialized();
-        
         const tx = this.IndexedDBHelper.createTransaction(['listings', 'tags', 'user_listings'], 'readonly');
         const listingStore = this.IndexedDBHelper.getStore(tx, 'listings');
         const tagStore = this.IndexedDBHelper.getStore(tx, 'tags');
@@ -825,6 +837,8 @@ export class DBService {
     }
 
     async getAchievementsByOCId(ocId, { page = 0, pageSize = 10 }) {
+        const pageIndex = Math.max(0, page - 1);
+        
         const user = await this.getUserByOCId(ocId);
         if (!user?.user) {
             return { data: [], total: 0 };
@@ -871,52 +885,36 @@ export class DBService {
                         const cursor = event.target.result;
                         if (cursor) {
                             const signup = cursor.value;
+                            
                             if (signup.user_id === user.user.id && signup.status === 'completed') {
-                                const listingRequest = listingsStore.get(signup.listing_id);
-                                listingRequest.onsuccess = () => {
-                                    const listing = listingRequest.result;
-                                    if (!listing) {
-                                        console.warn(`Listing not found for signup: ${signup.listing_id}`);
-                                        cursor.continue();
-                                        return;
-                                    }
+                                
+                                const successfulVcJobs = vcJobs.filter(job => 
+                                    job.user_id === signup.user_id && 
+                                    job.listing_id === signup.listing_id &&
+                                    job.status === VcIssueJobStatus.SUCCESS
+                                );
 
-                                    const vcJob = vcJobs.find(job => 
-                                        job.user_id === signup.user_id && 
-                                        job.listing_id === signup.listing_id &&
-                                        job.status === VcIssueJobStatus.SUCCESS
-                                    );
+                                successfulVcJobs.forEach(vcJob => {
                                     
-                                    if (vcJob && count >= (page - 1) * pageSize && count < page * pageSize) {
-                                        const validUntil = listing.vc_properties?.expireInDays ? 
-                                            new Date(new Date(signup.last_modified_ts).getTime() + listing.vc_properties.expireInDays * 24 * 60 * 60 * 1000).toISOString() : 
-                                            null;
-                                        
-                                        results.push({
-                                            id: listing.id,
-                                            awardedDate: signup.last_modified_ts,
-                                            validFrom: signup.last_modified_ts,
-                                            validUntil,
-                                            description: listing.description || '',
-                                            credentialSubject: {
-                                                name: user.user.name,
-                                                email: user.user.email,
-                                                achievement: {
-                                                    identifier: listing.id,
-                                                    achievementType: listing.vc_properties?.achievementType || 'Achievement',
-                                                    name: listing.name || 'Unknown Achievement',
-                                                    description: listing.description || ''
-                                                }
-                                            }
-                                        });
+                                    if (count >= pageIndex * pageSize && count < (pageIndex + 1) * pageSize) {
+                                        const payload = vcJob.payload;
+                                        if (payload && payload.credentialPayload) {
+                                            const credentialPayload = payload.credentialPayload;
+                                            const achievement = {
+                                                id: credentialPayload.credentialSubject.achievement.identifier,
+                                                awardedDate: credentialPayload.awardedDate,
+                                                validFrom: credentialPayload.validFrom,
+                                                validUntil: credentialPayload.validUntil,
+                                                description: credentialPayload.description || credentialPayload.credentialSubject.achievement.description || '',
+                                                credentialSubject: credentialPayload.credentialSubject
+                                            };
+                                            results.push(achievement);
+                                        }
                                     }
                                     count++;
-                                    cursor.continue();
-                                };
-                                listingRequest.onerror = () => {
-                                    console.error('Error fetching listing:', listingRequest.error);
-                                    cursor.continue();
-                                };
+                                });
+
+                                cursor.continue();
                             } else {
                                 cursor.continue();
                             }
@@ -996,6 +994,101 @@ export class DBService {
         return job;
     }
 
+    async createVCIssueJobs(userId, listingId) {
+        const tx = this.IndexedDBHelper.createTransaction(['vc_issue_jobs', 'users', 'listings', 'tags'], 'readwrite');
+        const vcJobsStore = this.IndexedDBHelper.getStore(tx, 'vc_issue_jobs');
+        const usersStore = this.IndexedDBHelper.getStore(tx, 'users');
+        const listingsStore = this.IndexedDBHelper.getStore(tx, 'listings');
+        const tagsStore = this.IndexedDBHelper.getStore(tx, 'tags');
+        
+        const user = await this.IndexedDBHelper.get(usersStore, userId);
+        const listing = await this.IndexedDBHelper.get(listingsStore, listingId);
+        
+        if (!user || !listing) {
+            throw new Error("User or listing not found");
+        }
+
+        const allTags = await this.IndexedDBHelper.getAll(tagsStore);
+        const listingTags = allTags.filter(tag => 
+            listing.tags && listing.tags.includes(tag.id) && 
+            tag.can_issue_oca && 
+            !tag.archived_ts
+        );
+
+        const now = new Date();
+        const listingVcProperties = listing.vc_properties || {};
+        const userDetails = {
+            ocId: user.oc_id,
+            name: user.name,
+            email: user.email,
+        };
+
+        const generateOCAPayload = (vcProperties, description, identifier, title) => {
+            const uniqueString = `${userId}_${identifier}`;
+            const issuerReferenceId = uuidv5(uniqueString, UUID_NAMESPACE);
+
+            const utcNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
+            const utcValidUntil = vcProperties.expireInDays
+                ? new Date(utcNow.getTime() + vcProperties.expireInDays * 24 * 60 * 60 * 1000)
+                : undefined;
+
+            return {
+                holderOcId: userDetails.ocId,
+                issuerReferenceId: issuerReferenceId,
+                credentialPayload: {
+                    awardedDate: utcNow.toISOString(),
+                    validFrom: utcNow.toISOString(),
+                    validUntil: utcValidUntil ? utcValidUntil.toISOString() : undefined,
+                    description,
+                    credentialSubject: {
+                        name: userDetails.name,
+                        email: userDetails.email,
+                        achievement: {
+                            identifier,
+                            achievementType: vcProperties.achievementType,
+                            name: title,
+                            description,
+                        },
+                    },
+                },
+            };
+        };
+
+        const vcIssueJobsPayloads = [
+            generateOCAPayload(
+                listingVcProperties,
+                listing.description,
+                listingId,
+                listingVcProperties.title || listing.name
+            ),
+            ...listingTags.map((tag) =>
+                generateOCAPayload(
+                    tag.vc_properties || {},
+                    tag.description,
+                    tag.id,
+                    `${listingVcProperties.title || listing.name} - ${tag.vc_properties?.title || tag.name}`
+                )
+            ),
+        ];
+
+        const jobs = vcIssueJobsPayloads.map((payload) => ({
+            id: crypto.randomUUID(),
+            user_id: userId,
+            listing_id: listingId,
+            payload: payload,
+            status: VcIssueJobStatus.PENDING,
+            retry_count: 0,
+            created_ts: now.toISOString(),
+            last_modified_ts: now.toISOString()
+        }));
+
+        for (const job of jobs) {
+            await this.IndexedDBHelper.add(vcJobsStore, job);
+        }
+
+        return jobs;
+    }
+
     matchesListingFilters(listing, { searchText, searchTags }) {
         if (searchText) {
             const searchLower = searchText.toLowerCase();
@@ -1067,15 +1160,12 @@ export class DBService {
         const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
         if (adminOCIDs !== null) {
-            // Update admin list in IndexedDB
             const config = createAdminConfigsDocument({
-                admin_ocids: adminOCIDs,
-                isMasterAdmin: false // We don't use this field anymore
+                admin_ocids: adminOCIDs
             });
             await this.IndexedDBHelper.put(store, config);
             return { message: "Admin configs updated successfully" };
         } else {
-            // Return both master admin and admin list
             const masterAdminOCId = this._getMasterAdminFromStorage();
             return { 
                 admin_ocids: adminConfig?.admin_ocids || [],
@@ -1086,30 +1176,24 @@ export class DBService {
     }
 
     async setMasterAdmin(ocId) {
-        // Check if master admin already exists in localStorage
         const existingMasterAdmin = this._getMasterAdminFromStorage();
         
         if (existingMasterAdmin) {
             throw new Error("A master admin already exists");
         }
 
-        // Set master admin in localStorage
         this._setMasterAdminToStorage(ocId);
         
-        // Also ensure the user is in the admin list in IndexedDB
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readwrite');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
         
         const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         if (!adminConfig) {
-            // Create new admin config if it doesn't exist
             const newConfig = createAdminConfigsDocument({
                 admin_ocids: [ocId],
-                isMasterAdmin: false // We don't use this field anymore, but keep for compatibility
             });
             await this.IndexedDBHelper.put(store, newConfig);
         } else if (!adminConfig.admin_ocids.includes(ocId)) {
-            // Add to admin list if not already there
             adminConfig.admin_ocids.push(ocId);
             adminConfig.last_modified_ts = new Date().toISOString();
             await this.IndexedDBHelper.put(store, adminConfig);
@@ -1133,18 +1217,19 @@ export class DBService {
     }
 
     async isAdmin(ocId) {
-        // Master admins automatically have admin permissions
+        // Check master admin first (stored in localStorage)
         const isMasterAdmin = await this.isMasterAdmin(ocId);
         if (isMasterAdmin) {
             return true;
         }
         
+        // Check regular admins (stored in IndexedDB)
         const tx = this.IndexedDBHelper.createTransaction(['admin_configs'], 'readonly');
         const store = this.IndexedDBHelper.getStore(tx, 'admin_configs');
         
         const adminConfig = await this.IndexedDBHelper.get(store, 'admin_config');
         
-        return adminConfig?.admin_ocids?.includes(ocId);
+        return adminConfig?.admin_ocids?.includes(ocId) || false;
     }
 
     async makeAdmin(ocId) {
@@ -1305,7 +1390,6 @@ export class DBService {
             };
         });
     }
-
 }
 
 const dbService = new DBService();
