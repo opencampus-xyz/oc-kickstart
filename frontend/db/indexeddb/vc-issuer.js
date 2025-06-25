@@ -92,8 +92,6 @@ class VCIssuer {
   }
 
   async updateVCJobStatus(jobId, status) {
-    await dbService.initPromise;
-    
     if (!dbService.db) {
       console.warn('Database not ready yet, skipping VC job status update');
       return;
@@ -130,8 +128,6 @@ class VCIssuer {
   }
 
   async incrementVCJobRetryCount(jobId) {
-    await dbService.initPromise;
-    
     if (!dbService.db) {
       console.warn('Database not ready yet, skipping VC job retry count increment');
       return;
@@ -186,21 +182,16 @@ class VCIssuer {
 
   checkConfiguration() {
     if (!this.ocaIssuanceUrl) {
-      console.error('ERROR: NEXT_PUBLIC_OCA_ISSUANCE_URL is not set');
-      return false;
+      throw new Error('ERROR: NEXT_PUBLIC_OCA_ISSUANCE_URL is not set');
     }
     
     if (!this.ocaIssuanceApiKey) {
-      console.error('ERROR: NEXT_PUBLIC_OCA_ISSUANCE_API_KEY is not set');
-      return false;
+      throw new Error('ERROR: NEXT_PUBLIC_OCA_ISSUANCE_API_KEY is not set');
     }
-    
-    return true;
   }
 
   startService(intervalMs) {
     this.checkConfiguration();
-    
     if (this.intervalId) {
       this.stopService();
     }

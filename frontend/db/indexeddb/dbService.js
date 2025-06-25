@@ -15,7 +15,6 @@ const UUID_NAMESPACE = uuidv4();
 export class DBService {
     constructor() {
         this.db = null;
-        this.initPromise = this.init();
         this.vcIssuerInitialized = false;
     }
 
@@ -23,8 +22,6 @@ export class DBService {
         if (this.vcIssuerInitialized) {
             return;
         }
-        
-        await this.initPromise;
         
         const vcIssuer = VCIssuerService.getInstance();
         vcIssuer.startService(
@@ -1023,8 +1020,8 @@ export class DBService {
             email: user.email,
         };
 
-        const generateOCAPayload = (vcProperties, description, identifier, title) => {
-            const uniqueString = `${userId}_${identifier}`;
+        const generateOCAPayload = (vcProperties, description, identifier, refId, title) => {
+            const uniqueString = `${userId}_${refId}`;
             const issuerReferenceId = uuidv5(uniqueString, UUID_NAMESPACE);
 
             const utcNow = new Date(now.getTime() - (now.getTimezoneOffset() * 60000));
@@ -1059,6 +1056,7 @@ export class DBService {
                 listingVcProperties,
                 listing.description,
                 listingId,
+                listingId,
                 listingVcProperties.title || listing.name
             ),
             ...listingTags.map((tag) =>
@@ -1066,6 +1064,7 @@ export class DBService {
                     tag.vc_properties || {},
                     tag.description,
                     tag.id,
+                    `${listingId}_${tag.id}`,
                     `${listingVcProperties.title || listing.name} - ${tag.vc_properties?.title || tag.name}`
                 )
             ),
