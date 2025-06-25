@@ -45,8 +45,8 @@ export const createVCIssueJobs = async (userId, listingId) => {
     email: signup.email,
   };
 
-  const generateOCAPayload = (vcProperties, description, identifier, title) => {
-    const uniqueString = `${userId}_${identifier}`;
+  const generateOCAPayload = (vcProperties, description, identifier, refId, title) => {
+    const uniqueString = `${userId}_${refId}`;
     const issuerReferenceId = uuidv5(uniqueString, UUID_NAMESPACE);
 
     return {
@@ -78,12 +78,14 @@ export const createVCIssueJobs = async (userId, listingId) => {
       listingVcProperties,
       signup.description,
       listingId,
+      listingId,
       listingVcProperties.title
     ),
     ...tagsDetails.map((tag) =>
       generateOCAPayload(
         tag.vc_properties,
         tag.description,
+        tag.id,
         `${listingId}_${tag.id}`,
         `${listingVcProperties.title} - ${tag.vc_properties.title}`
       )

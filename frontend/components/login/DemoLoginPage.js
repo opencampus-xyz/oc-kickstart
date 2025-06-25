@@ -12,23 +12,11 @@ const generateRandomEmail = () => {
 
 export default function DemoLoginPage({isInvalidLogin, isAdminLogin, originUrl}) {
     const [email, setEmail] = useState("");
-    const [error, setError] = useState(null);
-    const [isEmailLocked, setIsEmailLocked] = useState(false);
 
     useEffect(() => {
-        const checkMasterAdmin = () => {
-        const masterAdminOcid = localStorage.getItem('master_admin_ocid');
-        if (!masterAdminOcid && !isEmailLocked) {
-            const randomEmail = generateRandomEmail();
-            setEmail(randomEmail);
-            setIsEmailLocked(true);
-        } else if (masterAdminOcid && isEmailLocked) {
-            setIsEmailLocked(false);
-        }
-        };
-
-        checkMasterAdmin();
-      }, [isEmailLocked]);
+          const randomEmail = generateRandomEmail();
+          setEmail(randomEmail);
+      }, []);
     
     return (
         <div className={styles.pageContainer}>
@@ -57,9 +45,7 @@ export default function DemoLoginPage({isInvalidLogin, isAdminLogin, originUrl})
               label="Email"
               value={email}
               sx={{ minWidth: "300px" }}
-              error={!!error}
-              helperText={error}
-              disabled={isEmailLocked}
+              disabled={true}
             />
             <LoginButton state={{ email, path: "signup", originUrl }} />
           </div>
