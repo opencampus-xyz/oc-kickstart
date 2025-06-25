@@ -16,6 +16,7 @@ export default function Achievements() {
   const [total, setTotal] = useState(0);
   const searchParams = useSearchParams();
   const ocid = searchParams.get("ocid");
+
   const fetchAchievements = async () => {
     setLoading(true);
     try {
@@ -54,8 +55,8 @@ export default function Achievements() {
       <div className={styles.listingsContainer}>
         {loading && <Loading />}
         {!loading &&
-          achievements.map((achievement) => (
-            <AchievementCard key={achievement.id} achievement={achievement} />
+          achievements.map((achievement, index) => (
+            <AchievementCard key={`${achievement.id}_${index}`} achievement={achievement} />
           ))}
       </div>
     </div>
