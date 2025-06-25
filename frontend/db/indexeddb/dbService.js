@@ -102,19 +102,14 @@ export class DBService {
     }
 
     async init() {
-        this.db = await initDatabase();
-        
-        return this.db;
-    }
-    async ensureInitialized() {
-        await this.initPromise;
-        if (!this.db) {
-            throw new Error('Database failed to initialize');
-        }
-        
-        if (!this.vcIssuerInitialized) {
-            await this._initVCIssuer();
-        }
+        if(!this.db){	       
+            try{
+                this.db = await initDatabase();	
+                await this._initVCIssuer();
+            }catch(e){
+                throw new Error('Database failed to initialize');	
+            }
+        }	
     }
 
     // ===== backend/src/index.js endpoints =====
@@ -1413,20 +1408,6 @@ export class DBService {
         }
         
         return fixedCount;
-    }
-
-    async checkVCJobsStatus() {
-        const tx = this.IndexedDBHelper.createTransaction(['vc_issue_jobs'], 'readonly');
-        const vcJobsStore = this.IndexedDBHelper.getStore(tx, 'vc_issue_jobs');
-        
-        const allJobs = await this.IndexedDBHelper.getAll(vcJobsStore);
-        
-        const statusCounts = allJobs.reduce((acc, job) => {
-            acc[job.status] = (acc[job.status] || 0) + 1;
-            return acc;
-        }, {});
-        
-        return { jobs: allJobs, statusCounts };
     }
 
 }

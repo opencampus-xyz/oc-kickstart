@@ -175,7 +175,7 @@ class VCIssuer {
         return;
       }
       
-      const results = await Promise.allSettled(
+      await Promise.allSettled(
         pendingVCJobs.map(async (job) => await this.issueVC(job))
       );
       
@@ -196,23 +196,6 @@ class VCIssuer {
     }
     
     return true;
-  }
-
-  async testIssuer() {
-    if (!this.checkConfiguration()) {
-      console.error('VC Issuer is not properly configured');
-      return;
-    }
-    
-    const { jobs, statusCounts } = await this.checkVCJobsStatus();
-    
-    const pendingJobs = jobs.filter(job => job.status === VcIssueJobStatus.PENDING);
-    
-    if (pendingJobs.length > 0) {
-      await this.run();
-      
-      const { statusCounts: newStatusCounts } = await this.checkVCJobsStatus();
-    }
   }
 
   startService(intervalMs) {
@@ -236,36 +219,6 @@ class VCIssuer {
     }
   }
 
-  async checkVCJobsStatus() {
-    await dbService.initPromise;
-    
-    if (!dbService.db) {
-      console.warn('Database not ready yet, skipping VC jobs status check');
-      return { jobs: [], statusCounts: {} };
-    }
-    
-    return new Promise((resolve, reject) => {
-      const transaction = dbService.db.transaction(['vc_issue_jobs'], 'readonly');
-      const store = transaction.objectStore('vc_issue_jobs');
-      
-      const request = store.getAll();
-      
-      request.onsuccess = () => {
-        const jobs = request.result || [];
-        const statusCounts = jobs.reduce((acc, job) => {
-          acc[job.status] = (acc[job.status] || 0) + 1;
-          return acc;
-        }, {});
-        
-        resolve({ jobs, statusCounts });
-      };
-      
-      request.onerror = (error) => {
-        console.error('Error checking VC jobs status:', error);
-        reject(error);
-      };
-    });
-  }
 }
 
 export class VCIssuerService {
