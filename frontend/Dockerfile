@@ -2,8 +2,7 @@ FROM node:20.18.1-alpine AS base
 
 FROM base AS builder
 ENV YARN_VERSION=4.2.2
-RUN apk add --no-cache libc6-compat
-
+ENV NODE_ENV=production
 WORKDIR /app
 
 COPY . .
@@ -23,6 +22,7 @@ RUN adduser --system --uid 1001 nextjs
 COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+RUN rm .env .env.production
 
 USER nextjs
 
