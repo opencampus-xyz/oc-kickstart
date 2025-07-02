@@ -1,47 +1,11 @@
-FROM node:20.18.1-alpine AS base
-
-FROM base AS builder
-ENV YARN_VERSION=4.2.2
-ENV NODE_ENV=production
-WORKDIR /app
-
-ARG NEXT_PUBLIC_SSO_COOKIE_DOMAIN
-ARG NEXT_PUBLIC_SANDBOX_MODE
-ARG NEXT_PUBLIC_AUTH_CLIENT_ID
-ARG NEXT_PUBLIC_DB_MODE
-ARG NEXT_PUBLIC_OCA_ISSUANCE_URL
-ARG NEXT_PUBLIC_JWK_URL
-ARG NEXT_PUBLIC_OCA_ISSUANCE_API_KEY
-ARG NEXT_PUBLIC_DEMO_MODE
-
-ENV NEXT_PUBLIC_SSO_COOKIE_DOMAIN=${NEXT_PUBLIC_SSO_COOKIE_DOMAIN}
-ENV NEXT_PUBLIC_SANDBOX_MODE=${NEXT_PUBLIC_SANDBOX_MODE}
-ENV NEXT_PUBLIC_AUTH_CLIENT_ID=${NEXT_PUBLIC_AUTH_CLIENT_ID}
-ENV NEXT_PUBLIC_DB_MODE=${NEXT_PUBLIC_DB_MODE}
-ENV NEXT_PUBLIC_OCA_ISSUANCE_URL=${NEXT_PUBLIC_OCA_ISSUANCE_URL}
-ENV NEXT_PUBLIC_JWK_URL=${NEXT_PUBLIC_JWK_URL}
-ENV NEXT_PUBLIC_OCA_ISSUANCE_API_KEY=${NEXT_PUBLIC_OCA_ISSUANCE_API_KEY}
-ENV NEXT_PUBLIC_DEMO_MODE=${NEXT_PUBLIC_DEMO_MODE}
-
-COPY . .
-
-RUN corepack enable && corepack prepare yarn@${YARN_VERSION}
-RUN yarn && yarn build
-
-# Production image, copy all the files and run next
-FROM base AS runner
+FROM node:20.18.1-alpine 
 WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-COPY --from=builder /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
-
-USER nextjs
+COPY public ./public
+COPY --chown=nextjs:nodejs .next/standalone ./
+COPY --chown=nextjs:nodejs .next/static ./.next/static
 
 EXPOSE 8080
 ENV PORT=8080
