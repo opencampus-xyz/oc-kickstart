@@ -1,16 +1,19 @@
 FROM node:20.18.1-alpine 
-
-ENV YARN_VERSION=4.2.2
-ENV NODE_ENV=production
-
 WORKDIR /app
 
-COPY . .
+ENV NODE_ENV=production
 
-RUN corepack enable && corepack prepare yarn@${YARN_VERSION}
-RUN yarn && yarn build
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY public ./public
+COPY --chown=nextjs:nodejs .next/standalone ./
+COPY --chown=nextjs:nodejs .next/static ./.next/static
+
+USER nextjs
 
 EXPOSE 8080
 ENV PORT=8080
 
-CMD ["yarn", "start"]
+ENV HOSTNAME="0.0.0.0"
+CMD ["node", "server.js"]

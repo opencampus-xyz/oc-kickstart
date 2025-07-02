@@ -1,5 +1,9 @@
 node_modules
 .yarn
-.next
-.env
+.env.production
 .env.dev
+.env
+**/.env
+**/.env.production
+**/.env.dev
+
