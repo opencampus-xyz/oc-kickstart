@@ -1,10 +1,12 @@
 "use client";
 
 import { Table } from "@/components/common/Table";
+import { useApi } from "@/providers/ApiProvider";
 import { format } from "date-fns";
 import { capitalize } from "lodash";
 
 export default function SignUpsPage() {
+  const { apiService } = useApi();
   const columns = [
     { field: "listing_name", headerName: "Listing", width: 300 },
     {
@@ -36,7 +38,7 @@ export default function SignUpsPage() {
   return (
     <Table
       columns={columns}
-      fetchURL="/auth-user/sign-ups"
+      fetchData={async (params) => await apiService.getUserSignups(params)}
       pageTitle="Sign Ups"
       emptyMessage="No sign ups found."
     />

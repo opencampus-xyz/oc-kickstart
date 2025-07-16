@@ -1,12 +1,12 @@
 "use client";
 import { AchievementCard } from "@/components/achievements/AchievementCard";
 import { Loading } from "@/components/common/Loading";
-import { publicFetch } from "@/db/utils";
 import { Pagination, Typography } from "@mui/material";
 import { useSearchParams } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import styles from "../home/home.module.css";
+import { useApi } from "@/providers/ApiProvider";
 
 const PAGE_SIZE = 9;
 export default function Achievements() {
@@ -15,16 +15,13 @@ export default function Achievements() {
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const searchParams = useSearchParams();
+  const { apiService } = useApi();
   const ocid = searchParams.get("ocid");
 
   const fetchAchievements = async () => {
     setLoading(true);
     try {
-      const params = new URLSearchParams();
-      params.append("page", page);
-      params.append("pageSize", PAGE_SIZE);
-      const response = await publicFetch(`/achievements/${ocid}?${params}`);
-      const { data, total } = await response.json();
+      const { data, total } = await apiService.publicGetAchievementsByOCId(ocid, {page, pageSize: PAGE_SIZE});
       setAchievements(data);
       setTotal(total);
       setLoading(false);

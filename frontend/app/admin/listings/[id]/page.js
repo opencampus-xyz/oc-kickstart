@@ -1,21 +1,20 @@
 "use client";
 import { CreateEditListing } from "@/components/admin/CreateEditListing";
 import { Loading } from "@/components/common/Loading";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
+import { useApi } from "@/providers/ApiProvider";
 import { useParams } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 
 export default function ListingPage() {
   const { id } = useParams();
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
   const [listing, setListing] = useState(null);
   const [loading, setLoading] = useState(true);
 
   const fetchListingById = async () => {
     try {
-      const data = await fetchWithAuth(`/admin/listing/${id}`);
-      const listing = await data.json();
+      const listing = await apiService.adminGetListingById(id);
       setListing(listing);
     } catch (error) {
       console.error(error);

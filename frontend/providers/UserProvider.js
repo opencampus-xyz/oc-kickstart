@@ -1,9 +1,9 @@
 "use client";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { enqueueSnackbar } from "notistack";
 import { createContext, useContext, useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
+import { useApi } from "./ApiProvider";
 
 const UserContext = createContext({});
 
@@ -20,9 +20,9 @@ export const UserProvider = ({ children }) => {
   const [isInitialized, setIsInitialized] = useState(false);
   const { isInitialized: isAuthInitialized, authState } = useOCAuth();
 
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService, isApiAuthenticated } = useApi();
   const getUser = async () => {
-    if (!isAuthInitialized) {
+    if (!isAuthInitialized || !apiService || !isApiAuthenticated) {
       return;
     }
 
@@ -37,18 +37,15 @@ export const UserProvider = ({ children }) => {
       return;
     }
 
-        try {
-          const response = await fetchWithAuth("/user", {
-            method: "GET",
-          });
-          const data = await response.json();
-          setUser(data);
-        } catch (error) {
+    try {
+      const data = await apiService.getSelfUser();
+      setUser(data);
+    } catch (error) {
       if (authState?.isAuthenticated) {
-          enqueueSnackbar("Error fetching user", {
-            variant: "error",
-          });
-        }
+        enqueueSnackbar("Error fetching user", {
+          variant: "error",
+        });
+      }
       setUser({
         isMasterAdmin: false,
         isAdmin: false,
@@ -62,15 +59,22 @@ export const UserProvider = ({ children }) => {
 
   useEffect(() => {
     getUser();
-  }, [isAuthInitialized, authState?.isAuthenticated]);
+  }, [isAuthInitialized, authState?.isAuthenticated, apiService]);
 
   useEffect(() => {
-    if (isInitialized && authState?.isAuthenticated && !user.isRegisteredUser && !user.isMasterAdmin && !user.isAdmin) {
-      if (pathname !== '/signup') {
-        router.replace('/signup');
+    if (
+      isInitialized &&
+      authState?.isAuthenticated &&
+      apiService &&
+      !user?.isRegisteredUser &&
+      !user?.isMasterAdmin &&
+      !user?.isAdmin
+    ) {
+      if (pathname !== "/signup") {
+        router.replace("/signup");
       }
     }
-  }, [isInitialized, authState, user.isRegisteredUser, pathname, router]);
+  }, [isInitialized, authState, user?.isRegisteredUser, pathname, router]);
 
   return (
     <UserContext.Provider value={{ ...user, isInitialized, getUser }}>

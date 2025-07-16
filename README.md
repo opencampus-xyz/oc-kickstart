@@ -42,8 +42,8 @@ to sign up for a developer account and get the API keys and Client ID, which wil
 | AUTH_CLIENT_ID       | Your Auth Client ID for OCID Connect                                                                                                  |
 | OCA_ISSUANCE_URL     | Sandbox: https://api.vc.staging.opencampus.xyz/issuer/vc<br>Production: https://api.vc.opencampus.xyz/issuer/vc                       |
 | OCA_ISSUANCE_API_KEY | Your OCA issuance API Key                                                                                                             |
-| CREDENTIALS_URL      | Sandbox: https://api.credentials.staging.opencampus.xyz/credentials<br>Production: https://api.credentials.opencampus.xyz/credentials |
-| METADATA_URL         | Sandbox: https://metadata.vc.staging.opencampus.xyz/metadata<br>Production: https://metadata.vc.opencampus.xyz/metadata               |
+| ANALYTICS_URL      | Sandbox: https://api.analytics.vc.staging.opencampus.xyz/vcs<br>Production: https://api.analytics.vc.opencampus.xyz/vcs |
+| OC_AUTH_URL              | Sandbox: https://api.login.sandbox.opencampus.xyz/auth/validation<br>Production: https://api.login.opencampus.xyz/auth/validation        |
 | VC_ISSUANCE_INTERVAL | VC Issuer job interval in seconds                                                                                                     |
 
 ### Frontend
@@ -60,6 +60,7 @@ to sign up for a developer account and get the API keys and Client ID, which wil
 | NEXT_PUBLIC_OCA_ISSUANCE_URL  | Not needed if not in Indedexed DB mode         |
 | NEXT_PUBLIC_OCA_ISSUANCE_API_KEY| Not needed if not in Indedexed DB mode         |
 | NEXT_PUBLIC_VC_ISSUANCE_INTERVAL| Not needed if not in Indedexed DB mode         |
+| NEXT_PUBLIC_ANALYTICS_URL| Not needed if not in Indedexed DB mode         |
 
 
 ## Remark

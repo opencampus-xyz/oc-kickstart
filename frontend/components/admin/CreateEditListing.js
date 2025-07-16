@@ -1,5 +1,4 @@
 import { LISTING_TRIGGER_MODES } from "@/constants";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import {
   Button,
   FormControl,
@@ -16,9 +15,9 @@ import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import styles from "./CreateEditListing.module.css";
 import { EditVCProperties } from "./EditVCProperties";
+import { useApi } from "@/providers/ApiProvider";
 
 export const CreateEditListing = ({ listing, refetch }) => {
-  const fetchWithAuth = useAuthenticatedFetch();
   const [tags, setTags] = useState([]);
   const [selectedTags, setSelectedTags] = useState(listing?.tags ?? []);
   const [selectedTriggerMode, setSelectedTriggerMode] = useState(
@@ -27,6 +26,7 @@ export const CreateEditListing = ({ listing, refetch }) => {
   const [publishPopoverEl, setPublishPopoverEl] = useState(null);
   const isEdit = !!listing;
   const router = useRouter();
+  const { apiService } = useApi();
 
   useEffect(() => {
     setSelectedTags(listing?.tags ?? []);
@@ -35,14 +35,7 @@ export const CreateEditListing = ({ listing, refetch }) => {
 
   const createListing = async (formJson) => {
     try {
-      const response = await fetchWithAuth("/admin/listing/create", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formJson),
-      });
-      const data = await response.json();
+      const data = await apiService.adminCreateListing(formJson);
       enqueueSnackbar("Listing created successfully", { variant: "success" });
 
       return data;
@@ -54,14 +47,7 @@ export const CreateEditListing = ({ listing, refetch }) => {
 
   const updateListing = async (listingId, formJson) => {
     try {
-      const response = await fetchWithAuth("/admin/listing/update", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id: listingId, ...formJson }),
-      });
-      const data = await response.json();
+      const data = await apiService.adminUpdateListing(listingId, formJson);
       enqueueSnackbar("Listing updated successfully", { variant: "success" });
       refetch();
       return data;
@@ -79,13 +65,7 @@ export const CreateEditListing = ({ listing, refetch }) => {
         });
         return;
       }
-      await fetchWithAuth("/admin/listing/publish", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id: listing.id }),
-      });
+      await apiService.adminPublishListing(listing.id);
       setPublishPopoverEl(null);
       enqueueSnackbar("Listing published successfully", { variant: "success" });
       refetch();
@@ -97,13 +77,7 @@ export const CreateEditListing = ({ listing, refetch }) => {
 
   const deleteListing = async () => {
     try {
-      await fetchWithAuth("/admin/listing/delete", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ id: listing.id }),
-      });
+      await apiService.adminDeleteListing(listing.id);
       enqueueSnackbar("Listing deleted successfully", { variant: "success" });
       refetch();
     } catch (error) {
@@ -113,8 +87,7 @@ export const CreateEditListing = ({ listing, refetch }) => {
   };
 
   const getActiveTags = async () => {
-    const response = await fetchWithAuth("/public/tags");
-    const data = await response.json();
+    const data = await apiService.publicGetTags();
     setTags(data);
   };
 

@@ -1,7 +1,6 @@
 "use client";
 import { Loading } from "@/components/common/Loading";
 import { FirstUserModal } from "@/components/demo/FirstUserModal";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
 import { Button, TextField } from "@mui/material";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
@@ -9,6 +8,7 @@ import { useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import "../../app/globals.css";
+import { useApi } from "@/providers/ApiProvider";
 
 export function DemoSignUp() {
   const [name, setName] = useState("");
@@ -17,8 +17,8 @@ export function DemoSignUp() {
   const [isWaitingForModal, setIsWaitingForModal] = useState(false);
   const { ocAuth, authState } = useOCAuth();
   const router = useRouter();
-  const fetchWithAuth = useAuthenticatedFetch();
   const user = useUser();
+  const { apiService } = useApi();
   const { getUser, isRegisteredUser } = user;
   const stateFromSDK = ocAuth?.getStateParameter();
 
@@ -52,20 +52,10 @@ export function DemoSignUp() {
         setError("Name is required");
         return;
       }
-      const requestBody = { name, email };
-      const response = await fetchWithAuth("/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error?.message || "Failed to sign up");
-      }
+      await apiService.signUp(name, email)
       setIsWaitingForModal(true);
       await getUser();
-      const updatedUserResponse = await fetchWithAuth("/user", { method: "GET" });
-      const updatedUserData = await updatedUserResponse.json();
+      const updatedUserData = await apiService.getSelfUser();
       if (updatedUserData.isMasterAdmin) {
         setShowFirstUserModal(true);
       } else {

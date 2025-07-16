@@ -1,22 +1,21 @@
 import { Button, Tooltip } from "@mui/material";
 import { useState, useEffect } from "react";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
 import { enqueueSnackbar } from "notistack";
 import { useRouter } from "next/navigation";
+import { useApi } from "@/providers/ApiProvider";
 
 export const ListingSignUp = ({ listing, size = "medium" }) => {
   const [signUpStatus, setSignUpStatus] = useState(null);
   const [tooltipOpen, setTooltipOpen] = useState(false);
   const { isRegisteredUser } = useUser();
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
   const router = useRouter();
 
   const fetchSignUpStatus = async () => {
     if (!isRegisteredUser) return;
     try {
-      const response = await fetchWithAuth(`/auth-user/listing-signup-status/${listing.id}`);
-      const data = await response.json();
+      const data = await apiService.getUserListingSignUpStatus(listing.id);
       setSignUpStatus(data.sign_up_status);
     } catch (error) {
       console.error('Error fetching signup status:', error);
@@ -37,11 +36,7 @@ export const ListingSignUp = ({ listing, size = "medium" }) => {
     }
 
     try {
-      await fetchWithAuth("/auth-user/signup-for-listing", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ listingId: listing.id }),
-      });
+      await apiService.signupForListing(listing.id);
       setSignUpStatus('pending');
       enqueueSnackbar('Successfully signed up for listing', { variant: 'success' });
     } catch (error) {

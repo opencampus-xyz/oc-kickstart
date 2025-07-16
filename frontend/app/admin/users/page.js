@@ -1,10 +1,12 @@
 "use client";
 import { Table } from "@/components/common/Table";
+import { useApi } from "@/providers/ApiProvider";
 import { Button } from "@mui/material";
 import { useRouter } from "next/navigation";
 
 export default function Users() {
   const router = useRouter();
+  const { apiService } = useApi();
 
   const columns = [
     { field: "id", headerName: "ID", width: 150 },
@@ -34,7 +36,7 @@ export default function Users() {
   return (
     <Table
       columns={columns}
-      fetchURL="/admin/users"
+      fetchData={async (params) => await apiService.adminGetUsers(params)}
       pageTitle="Users"
       emptyMessage="No users found."
     />

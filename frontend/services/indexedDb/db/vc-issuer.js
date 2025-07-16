@@ -1,48 +1,16 @@
-import dbService from './dbService.js';
-import { VcIssueJobStatus } from '../../constants.js';
+import { VcIssueJobStatus } from '@/constants.js';
 
 class VCIssuer {
-  constructor() {
+  constructor(dbService) {
     this.ocaIssuanceUrl = process.env.NEXT_PUBLIC_OCA_ISSUANCE_URL;
     this.ocaIssuanceApiKey = process.env.NEXT_PUBLIC_OCA_ISSUANCE_API_KEY;
     this.maxRetries = 3;
     this.intervalId = null;
+    this.dbService = dbService;
   }
 
   async queryPendingVCJobs() {
-    
-    if (!dbService.db) {
-      return [];
-    }
-    
-    return new Promise((resolve, reject) => {
-      try {
-        const transaction = dbService.db.transaction(['vc_issue_jobs'], 'readonly');
-        const store = transaction.objectStore('vc_issue_jobs');
-        const index = store.index('status');
-
-        const request = index.getAll(VcIssueJobStatus.PENDING);
-        
-        request.onsuccess = () => {
-          const pendingJobs = request.result || [];
-
-          resolve(pendingJobs);
-        };
-        
-        request.onerror = (error) => {
-          console.error('Error querying pending VC jobs:', error);
-          console.error('Error details:', {
-            error: error.target?.error,
-            errorCode: error.target?.error?.code,
-            errorName: error.target?.error?.name
-          });
-          reject(error);
-        };
-      } catch (error) {
-        console.error('Error creating transaction:', error);
-        reject(error);
-      }
-    });
+    return await this.dbService.queryPendingVCJobs()
   }
 
   async issueVC(job) {
@@ -92,13 +60,13 @@ class VCIssuer {
   }
 
   async updateVCJobStatus(jobId, status) {
-    if (!dbService.db) {
+    if (!this.dbService.db) {
       console.warn('Database not ready yet, skipping VC job status update');
       return;
     }
     
     return new Promise((resolve, reject) => {
-      const transaction = dbService.db.transaction(['vc_issue_jobs'], 'readwrite');
+      const transaction = this.dbService.db.transaction(['vc_issue_jobs'], 'readwrite');
       const store = transaction.objectStore('vc_issue_jobs');
       
       const getRequest = store.get(jobId);
@@ -128,13 +96,13 @@ class VCIssuer {
   }
 
   async incrementVCJobRetryCount(jobId) {
-    if (!dbService.db) {
+    if (!this.dbService.db) {
       console.warn('Database not ready yet, skipping VC job retry count increment');
       return;
     }
     
     return new Promise((resolve, reject) => {
-      const transaction = dbService.db.transaction(['vc_issue_jobs'], 'readwrite');
+      const transaction = this.dbService.db.transaction(['vc_issue_jobs'], 'readwrite');
       const store = transaction.objectStore('vc_issue_jobs');
       
       const getRequest = store.get(jobId);
@@ -166,7 +134,6 @@ class VCIssuer {
   async run() {
     try {
       const pendingVCJobs = await this.queryPendingVCJobs();
-      
       if (!pendingVCJobs.length) {
         return;
       }
@@ -217,9 +184,9 @@ export class VCIssuerService {
     this.intervalId = null;
   }
 
-  static getInstance() {
+  static getInstance(dbService) {
     if (!VCIssuerService.instance) {
-      VCIssuerService.instance = new VCIssuer();
+      VCIssuerService.instance = new VCIssuer(dbService);
     }
     return VCIssuerService.instance;
   }

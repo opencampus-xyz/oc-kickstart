@@ -1,7 +1,15 @@
 import db from "./db.js";
 
+const ocAuthUrl = process.env.OC_AUTH_URL;
+
 export const signup = async (name, email, ocid) => {
   try {
+    const params = new URLSearchParams({ email, ocid }).toString()
+    const userValidationResponse = await fetch(`${ocAuthUrl}?${params}`);
+    const userValidation = await userValidationResponse.json();
+    if (!userValidation?.valid) {
+      throw new Error('OCID does not match with the email');
+    }
     const userQueryStr = `
       INSERT INTO users (name, email, oc_id) VALUES ($1, $2, $3)
     `;

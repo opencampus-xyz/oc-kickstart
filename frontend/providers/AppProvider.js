@@ -23,7 +23,7 @@ import { useRouter } from "next/navigation";
 import React from "react";
 import { useUser } from "./UserProvider";
 import { useState, useEffect } from "react";
-import { isDemoMode } from '../db/utils';
+import { isDemoMode } from '@/utils';
 
 const Logout = () => {
   const { ocAuth, authState } = useOCAuth();

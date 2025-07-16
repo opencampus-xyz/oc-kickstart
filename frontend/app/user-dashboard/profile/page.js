@@ -1,17 +1,17 @@
 "use client";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
 import { AccountCircle } from "@mui/icons-material";
 import { Button, TextField, Typography } from "@mui/material";
 import { enqueueSnackbar } from "notistack";
 import { useState } from "react";
 import styles from "./Profile.module.css";
+import { useApi } from "@/providers/ApiProvider";
 
 export default function Profile() {
   const { user } = useUser();
   const [username, setUsername] = useState(user.name);
   const [loading, setLoading] = useState(false);
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
 
   const updateUsername = async () => {
     setLoading(true);
@@ -19,13 +19,7 @@ export default function Profile() {
       enqueueSnackbar("Please provide a username", { variant: "error" });
       return;
     }
-    await fetchWithAuth("/auth-user/update-username", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ username }),
-    });
+    await apiService.updateUsername(username);
     setLoading(false);
   };
   return (

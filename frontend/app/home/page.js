@@ -3,9 +3,7 @@ import { Loading } from "@/components/common/Loading";
 import { SearchBar } from "@/components/common/SearchBar";
 import { ListingCard } from "@/components/listings/ListingCard";
 import { USER_LISTING_STATUSES } from "@/constants";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
-import { publicFetch } from "@/db/utils";
 import {
   Box,
   Chip,
@@ -20,6 +18,7 @@ import { enqueueSnackbar } from "notistack";
 import { useEffect, useState, useMemo } from "react";
 import styles from "./home.module.css";
 import { useSearchParams, useRouter } from "next/navigation";
+import { useApi } from "@/providers/ApiProvider";
 
 const PAGE_SIZE = 9;
 
@@ -35,15 +34,14 @@ export default function Home() {
   const [tags, setTags] = useState([]);
   const [total, setTotal] = useState(0);
   const { isRegisteredUser } = useUser();
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
 
   const tagsKeyById = useMemo(() => keyBy(tags, "id"), [tags]);
 
   const fetchListingsWithUserSignUps = async (params) => {
     try {
-      const response = await fetchWithAuth(`/auth-user/listings?${params}`);
-      const data = await response.json();
-      setListings(data.listings);
+      const data = await apiService.getListings(params);
+      setListings(data.data);
       setTotal(data.total);
     } catch (error) {
       console.error(error);
@@ -55,9 +53,8 @@ export default function Home() {
 
   const fetchListingsForPublic = async (params) => {
     try {
-      const response = await publicFetch(`/listings?${params}`);
-      const data = await response.json();
-      setListings(data.listings);
+      const data = await apiService.publicGetListings(params);
+      setListings(data.data);
       setTotal(data.total);
     } catch (error) {
       console.error(error);
@@ -81,8 +78,7 @@ export default function Home() {
 
   const fetchTags = async () => {
     try {
-      const response = await publicFetch("/tags");
-      const data = await response.json();
+      const data = await apiService.publicGetTags();
       setTags(data);
     } catch (error) {
       console.error(error);
@@ -94,8 +90,11 @@ export default function Home() {
 
   useEffect(() => {
     fetchTags();
+  }, [])
+
+  useEffect(() => {
     fetchListings();
-  }, [isRegisteredUser, searchTags, page, searchStatus]);
+  }, [isRegisteredUser, page, searchStatus, searchTags]);
 
   useEffect(() => {
     const tagsParam = searchParams.get('tags');
@@ -121,7 +120,7 @@ export default function Home() {
         }
       }
     }
-  }, [searchParams, tagsKeyById, router]);
+  }, [searchParams, tagsKeyById]);
 
   const handleChangeTags = (e) => {
     const newTags = e.target.value;
@@ -146,21 +145,18 @@ export default function Home() {
   };
 
   const getSearchParams = (targetPage) => {
-    const params = new URLSearchParams();
+    const pageQuery = targetPage ?? page;
+    let params = {
+      page: pageQuery - 1,
+      pageSize: PAGE_SIZE,
+      searchStatus: searchStatus,
+    };
     if (searchText?.length > 0) {
-      params.append("searchTitle", searchText);
+      params.searchTitle = searchText;
     }
     if (searchTags.length > 0) {
-      params.append(
-        "searchTags",
-        searchTags.map((tag) => `'${tag}'`).join(",")
-      );
+      params.searchTags = searchTags.join(",")
     }
-
-    const pageQuery = targetPage ?? page;
-    params.append("page", pageQuery - 1);
-    params.append("pageSize", PAGE_SIZE);
-    params.append("searchStatus", searchStatus);
 
     return params;
   };

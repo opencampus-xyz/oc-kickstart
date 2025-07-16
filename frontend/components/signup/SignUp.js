@@ -1,6 +1,5 @@
 "use client";
 import { Loading } from "@/components/common/Loading";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
 import { Button, TextField } from "@mui/material";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
@@ -8,13 +7,14 @@ import { useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import "../../app/globals.css";
+import { useApi } from "@/providers/ApiProvider";
 
 export function SignUp() {
   const [name, setName] = useState("");
   const [error, setError] = useState();
   const { ocAuth, authState } = useOCAuth();
   const router = useRouter();
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
   const user = useUser();
   const { getUser, isRegisteredUser } = user;
   const stateFromSDK = ocAuth?.getStateParameter();
@@ -49,16 +49,7 @@ export function SignUp() {
         setError("Name is required");
         return;
       }
-      const requestBody = { name, email };
-      const response = await fetchWithAuth("/signup", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-      if (!response.ok) {
-        const data = await response.json();
-        throw new Error(data.error?.message || "Failed to sign up");
-      }
+      await apiService.signUp(name, email);
       await getUser();
       enqueueSnackbar("Signed up successfully", { variant: "success" });
       if (originUrl) {

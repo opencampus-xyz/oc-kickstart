@@ -1,4 +1,3 @@
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import {
   Button,
   Checkbox,
@@ -13,6 +12,7 @@ import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import styles from "./CreateEditTagDialog.module.css";
 import { EditVCProperties } from "./EditVCProperties";
+import { useApi } from "@/providers/ApiProvider";
 
 export const CreateEditTagDialog = ({
   open,
@@ -24,32 +24,35 @@ export const CreateEditTagDialog = ({
   const [showVCFormFields, setShowVCFormFields] = useState(
     editingTag?.can_issue_oca
   );
+  const { apiService } = useApi();
 
-  const fetchWithAuth = useAuthenticatedFetch();
   const upsertTag = async (formData) => {
     try {
-      const response = await fetchWithAuth("/admin/tag", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
+      let updatedTag;
+      if(editingTag){
+        updatedTag = await apiService.adminUpdateTag(editingTag.id, {
           ...formData,
           can_issue_oca: !!showVCFormFields,
           expireInDays: parseInt(formData.expireInDays),
-          method: editingTag ? "update" : "create",
-        }),
-      });
+        })
+      } else {
+        updatedTag = await apiService.adminCreateTag({
+          ...formData,
+          can_issue_oca: !!showVCFormFields,
+          expireInDays: parseInt(formData.expireInDays),
+        });
+      }
+
       enqueueSnackbar("Tag updated successfully", {
         variant: "success",
       });
       if (!editingTag) {
-        const data = await response.json();
-        setTagToBeAdded(data);
+        setTagToBeAdded(updatedTag);
       }
       onClose();
       refetch();
     } catch (error) {
+      console.error("Error updating tag:", error);
       enqueueSnackbar("Error updating tag", {
         variant: "error",
       });

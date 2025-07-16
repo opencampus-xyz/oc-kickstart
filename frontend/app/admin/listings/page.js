@@ -5,9 +5,11 @@ import { format } from "date-fns";
 import { capitalize } from "lodash";
 import { useRouter } from "next/navigation";
 import styles from "../admin.module.css";
+import { useApi } from "@/providers/ApiProvider";
 
 export default function Listings() {
   const router = useRouter();
+  const { apiService } = useApi();
 
   const columns = [
     { field: "id", headerName: "ID", width: 150 },
@@ -24,7 +26,7 @@ export default function Listings() {
       headerName: "Published At",
       width: 150,
       renderCell: (params) =>
-        format(new Date(params.row.published_ts), "yyyy-MM-dd hh:mm"),
+        params.row.published_ts ? format(new Date(params.row.published_ts), "yyyy-MM-dd hh:mm") : '',
     },
     {
       field: "status",
@@ -79,7 +81,7 @@ export default function Listings() {
   return (
     <Table
       columns={columns}
-      fetchURL="/admin/listings"
+      fetchData={async (params) => await apiService.adminGetListings(params)}
       pageTitle="Listings"
       formatDataFunc={formatData}
       emptyMessage="No listings found. Please create one."

@@ -3,6 +3,7 @@ import { OCConnect } from "@opencampus/ocid-connect-js";
 import { SnackbarProvider } from "notistack";
 import { AppProvider } from "./providers/AppProvider";
 import { UserProvider } from "./providers/UserProvider";
+import { ApiProvider } from "./providers/ApiProvider";
 
 export default function Providers({ children }) {
   const origin = typeof window !== "undefined" ? window.location.origin : "";
@@ -20,11 +21,13 @@ export default function Providers({ children }) {
 
   return (
     <OCConnect opts={opts} sandboxMode={isSandboxMode}>
-      <UserProvider>
-        <SnackbarProvider>
-          <AppProvider>{children}</AppProvider>
-        </SnackbarProvider>
-      </UserProvider>
+      <ApiProvider>
+        <UserProvider>
+          <SnackbarProvider>
+            <AppProvider>{children}</AppProvider>
+          </SnackbarProvider>
+        </UserProvider>
+      </ApiProvider>
     </OCConnect>
   );
 }

@@ -22,6 +22,48 @@ const adminAuthMiddleware = asyncWrapper(async (req, res, next) => {
 
 router.use(adminAuthMiddleware);
 
+router.put(
+  "/tag/:tagId",
+  asyncWrapper(async (req, res) => {
+    const {
+      name,
+      description,
+      can_issue_oca,
+      title,
+      achievementType,
+      expireInDays,
+    } = req.body;
+    const { tagId } = req.params;
+      const existingTag = await db.query("SELECT * FROM tags WHERE name = $1 and id != $2", [
+        name,
+        tagId
+      ]);
+      if (existingTag.rows.length > 0) {
+        throw new Error("Tag with the same name already exists");
+      }
+
+    const vc_properties = {
+      title,
+      achievementType,
+      expireInDays,
+    };
+    const updateTagQueryStr = `
+    UPDATE tags 
+    SET name = $1, description = $2, can_issue_oca = $3, vc_properties = $4 
+    WHERE id = $5
+    RETURNING *
+      `;
+    const tag = await db.query(updateTagQueryStr, [
+      name,
+      description,
+      can_issue_oca,
+      vc_properties,
+      tagId
+    ]);
+    res.json(tag.rows[0]);
+  })
+);
+
 router.post(
   "/tag",
   asyncWrapper(async (req, res) => {
@@ -29,30 +71,26 @@ router.post(
       name,
       description,
       can_issue_oca,
-      method,
       title,
       achievementType,
       expireInDays,
     } = req.body;
-    if (method === "create") {
       const existingTag = await db.query("SELECT * FROM tags WHERE name = $1", [
         name,
       ]);
       if (existingTag.rows.length > 0) {
         throw new Error("Tag already exists");
       }
-    }
 
     const vc_properties = {
       title,
       achievementType,
       expireInDays,
     };
-    const upsertTagQueryStr = `
-    INSERT INTO tags (name, description, can_issue_oca, vc_properties) VALUES ($1, $2, $3, $4) 
-    ON CONFLICT (name) DO UPDATE SET description = $2, can_issue_oca = $3, vc_properties = $4 RETURNING id, name
+    const insertTagQueryStr = `
+    INSERT INTO tags (name, description, can_issue_oca, vc_properties) VALUES ($1, $2, $3, $4) RETURNING *
       `;
-    const tag = await db.query(upsertTagQueryStr, [
+    const tag = await db.query(insertTagQueryStr, [
       name,
       description,
       can_issue_oca,
@@ -63,7 +101,7 @@ router.post(
 );
 
 router.post(
-  "/tag/archive/:id",
+  "/tag/:id/archive",
   asyncWrapper(async (req, res) => {
     const { id } = req.params;
     const tag = await db.query(
@@ -94,7 +132,7 @@ router.get(
 );
 
 router.get(
-  "/listing/:id",
+  "/listings/:id",
   asyncWrapper(async (req, res) => {
     const { id } = req.params;
     const listing = await db.query(
@@ -113,7 +151,7 @@ where l.id = $1`,
 );
 
 router.get(
-  "/listing/signups/:id",
+  "/listings/:id/signups",
   asyncWrapper(async (req, res) => {
     const { id } = req.params;
     const signups = await db.query(
@@ -148,12 +186,13 @@ router.get(
   })
 );
 
-router.post(
-  "/listing/signups/update-status",
+router.put(
+  "/listings/:listingId/signups/:userId",
   asyncWrapper(async (req, res) => {
-    const { userId, listingId, status } = req.body;
+    const { listingId, userId } = req.params;
+    const { status } = req.body;
     const signup = await db.query(
-      "UPDATE user_listings SET status = $3 WHERE user_id = $1 AND listing_id = $2",
+      "UPDATE user_listings SET status = $3 WHERE user_id = $1 AND listing_id = $2 RETURNING *",
       [userId, listingId, status]
     );
 
@@ -170,9 +209,10 @@ router.post(
 );
 
 router.post(
-  "/listing/signups/issue-oca",
+  "/listings/:listingId/issue",
   asyncWrapper(async (req, res) => {
-    const { userId, listingId } = req.body;
+    const {listingId} = req.params;
+    const { userId } = req.body;
     await createVCIssueJobs(userId, listingId);
 
     res.json({ success: true });
@@ -180,7 +220,7 @@ router.post(
 );
 
 router.post(
-  "/listing/create",
+  "/listings",
   asyncWrapper(async (req, res) => {
     const {
       name,
@@ -229,11 +269,11 @@ router.post(
   })
 );
 
-router.post(
-  "/listing/update",
+router.put(
+  "/listings/:listingId",
   asyncWrapper(async (req, res) => {
+    const { listingId } = req.params;
     const {
-      id,
       name,
       description,
       triggerMode,
@@ -258,20 +298,20 @@ router.post(
           triggerMode,
           parseInt(maxSignUps),
           vc_properties,
-          id,
+          listingId,
         ]
       );
       await client.query("DELETE FROM listing_tags WHERE listing_id = $1", [
-        id,
+        listingId,
       ]);
       for (const tag of tags) {
         await client.query(
           "INSERT INTO listing_tags (listing_id, tag_id) VALUES ($1, $2)",
-          [id, tag]
+          [listingId, tag]
         );
       }
       await client.query("COMMIT");
-      res.json({ id });
+      res.json({ listingId });
     } catch (error) {
       await client.query("ROLLBACK");
       throw error;
@@ -282,24 +322,24 @@ router.post(
 );
 
 router.post(
-  "/listing/publish",
+  "/listings/:listingId/publish",
   asyncWrapper(async (req, res) => {
-    const { id } = req.body;
+    const { listingId } = req.params;
     const listing = await db.query(
       "UPDATE listings SET published_ts = $2, status = 'active' WHERE id = $1",
-      [id, new Date()]
+      [listingId, new Date()]
     );
     res.json(listing.rows[0]);
   })
 );
 
 router.post(
-  "/listing/delete",
+  "/listings/:listingId/delete",
   asyncWrapper(async (req, res) => {
-    const { id } = req.body;
+    const { listingId } = req.params;
     const listing = await db.query(
       "UPDATE listings SET status = 'deleted', deleted_ts = $2 WHERE id = $1",
-      [id, new Date()]
+      [listingId, new Date()]
     );
     res.json(listing.rows[0]);
   })
@@ -342,13 +382,14 @@ router.get(
 );
 
 router.post(
-  "/add-tag",
+  "/tags/:tagId/add-to-listings",
   asyncWrapper(async (req, res) => {
-    const { tag, listings } = req.body;
-    for (const listing of listings) {
+    const { tagId } = req.params;
+    const {  listingIds } = req.body;
+    for (const listingId of listingIds) {
       await db.query(
         "INSERT INTO listing_tags (listing_id, tag_id) VALUES ($1, $2)",
-        [listing, tag]
+        [listingId, tagId]
       );
     }
 

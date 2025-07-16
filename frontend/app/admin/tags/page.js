@@ -2,23 +2,20 @@
 import { AddTagToListingsDialog } from "@/components/admin/AddTagToListingsDialog";
 import { CreateEditTagDialog } from "@/components/admin/CreateEditTagDialog";
 import { Table } from "@/components/common/Table";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { Button } from "@mui/material";
 import { format } from "date-fns";
 import { useState } from "react";
 import styles from "../admin.module.css";
+import { useApi } from "@/providers/ApiProvider";
 
 export default function Tags() {
   const [editingTag, setEditingTag] = useState(null);
   const [showTagEditModal, setShowTagEditModal] = useState(false);
   const [tagToBeAdded, setTagToBeAdded] = useState(false);
-
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
 
   const deleteTag = async (id, refetch) => {
-    await fetchWithAuth(`/admin/tag/archive/${id}`, {
-      method: "POST",
-    });
+    await apiService.adminArchiveTag(id)
     await refetch();
   };
 
@@ -87,7 +84,7 @@ export default function Tags() {
   return (
     <Table
       columnsWithRefetch={columns}
-      fetchURL="/admin/tags"
+      fetchData={async (params) => await apiService.adminGetTags(params)}
       pageTitle="Tags"
       formatDataFunc={formatData}
       emptyMessage="No tags found. Please create one."

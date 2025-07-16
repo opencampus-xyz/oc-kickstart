@@ -1,6 +1,5 @@
 "use client";
-
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
+import { useApi } from "@/providers/ApiProvider";
 import { Button, Menu, MenuItem, Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { ArrowLeftIcon } from "@mui/x-date-pickers";
@@ -15,37 +14,24 @@ export default function SignUpsPage() {
   const [loading, setLoading] = useState(false);
   const [menuAnchorEl, setMenuAnchorEl] = useState(null);
   const [selectedRowId, setSelectedRowId] = useState(null);
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
   const router = useRouter();
 
   const fetchUserListings = async () => {
-    const data = await fetchWithAuth(`/admin/listing/signups/${listingId}`);
-    const userListings = await data.json();
+    const userListings = await apiService.adminGetListingSignups(listingId);
     setUserListings(userListings);
   };
 
   const handleUpdateStatus = async (userId, listingId, status) => {
     setLoading(true);
-    await fetchWithAuth(`/admin/listing/signups/update-status`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ userId, listingId, status }),
-    });
+    await apiService.adminUpdateSignupStatus(userId, listingId, status);
     setLoading(false);
     fetchUserListings();
   };
 
   const handleIssueOCA = async (userId, listingId) => {
     setLoading(true);
-    await fetchWithAuth(`/admin/listing/signups/issue-oca`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({ userId, listingId }),
-    });
+    await apiService.adminCreateVCIssueJobs(userId, listingId);
     await fetchUserListings();
     setLoading(false);
   };
@@ -198,4 +184,4 @@ export default function SignUpsPage() {
       )}
     </>
   );
-}
+} 

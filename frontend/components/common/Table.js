@@ -1,7 +1,6 @@
 "use client";
 
 import { Loading } from "@/components/common/Loading";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { Typography } from "@mui/material";
 import { DataGrid } from "@mui/x-data-grid";
 import { useEffect, useState } from "react";
@@ -11,7 +10,7 @@ import styles from "./Table.module.css";
 export const Table = ({
   columns: columnsFromProps,
   columnsWithRefetch,
-  fetchURL,
+  fetchData: fetchDataFunc,
   pageTitle,
   emptyMessage,
   headerComp,
@@ -26,13 +25,11 @@ export const Table = ({
     pageSize: 2,
   });
 
-  const fetchWithAuth = useAuthenticatedFetch();
-
   const fetchData = async (targetPage) => {
     setLoading(true);
     const params = getSearchParams(targetPage);
-    const response = await fetchWithAuth(`${fetchURL}?${params}`);
-    const { data: responseData, total } = await response.json();
+
+    const { data: responseData, total } = await fetchDataFunc(params);
     const formattedData = formatDataFunc
       ? formatDataFunc(responseData)
       : responseData;
@@ -46,12 +43,13 @@ export const Table = ({
   }, [paginationModel.page, paginationModel.pageSize]);
 
   const getSearchParams = (targetPage) => {
-    const params = new URLSearchParams();
+    const params = {
+      page: targetPage ?? paginationModel.page,
+      pageSize: paginationModel.pageSize
+    };
     if (searchText?.length) {
-      params.append("searchText", searchText);
+      params.searchText = searchText;
     }
-    params.append("page", targetPage ?? paginationModel.page);
-    params.append("pageSize", paginationModel.pageSize);
     return params;
   };
 

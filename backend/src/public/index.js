@@ -9,12 +9,11 @@ router.get(
   asyncWrapper(async (req, res) => {
     const ocid = req.params.ocid;
     const { page, pageSize } = req.query;
-
-    let tokenIds = [];
-    let achievements = [];
+    let achievements = [],
+      total = 0;
     try {
       const response = await fetch(
-        `${process.env.CREDENTIALS_URL}?ocid=${ocid}`,
+        `${process.env.ANALYTICS_URL}?pageSize=${pageSize}&page=${page-1}&holderOcid=${ocid}`,
         {
           method: "GET",
           headers: {
@@ -22,45 +21,30 @@ router.get(
           },
         }
       );
-      const data = await response.json();
-      tokenIds = data.tokenIds;
+      const analyticsResp = await response.json();
+      total = analyticsResp.total;
+      const metadataEndpoints = analyticsResp.data.map(
+        (data) => data.metadataEndpoint
+      );
+      await Promise.all(
+        metadataEndpoints.map(async (metadataEndpoint) => {
+          try {
+            const achievementMetadata = await fetch(metadataEndpoint);
+            const metadataResult = await achievementMetadata.json();
+            if (metadataResult.metadata) {
+              achievements.push(metadataResult.metadata);
+            }
+          } catch (error) {
+            console.error(error);
+            throw new Error("Failed to fetch achievements");
+          }
+        })
+      );
     } catch (error) {
       console.error(error);
       throw new Error("Failed to fetch achievements");
     }
-
-    if (!tokenIds?.length) {
-      res.json({ data: [], total: 0 });
-      return;
-    }
-
-    const paginatedTokenIds = tokenIds.slice(
-      (page - 1) * pageSize,
-      page * pageSize
-    );
-
-    for (const tokenId of paginatedTokenIds) {
-      try {
-        const metadataResponse = await fetch(
-          `${process.env.METADATA_URL}/${tokenId}`,
-          {
-            method: "GET",
-            headers: {
-              "Content-Type": "application/json",
-            },
-          }
-        );
-        const metadataResult = await metadataResponse.json();
-        if (metadataResult.metadata) {
-          achievements.push(metadataResult.metadata);
-        }
-      } catch (error) {
-        console.error(error);
-        throw new Error("Failed to fetch achievements");
-      }
-    }
-
-    res.json({ data: achievements, total: tokenIds.length });
+    res.json({ data: achievements, total });
   })
 );
 
@@ -70,9 +54,11 @@ router.get(
     const { searchTitle, searchTags, page, pageSize } = req.query;
 
     let searchQueryStr = [];
+    
     if (searchTags) {
+      const searchTagsArray = searchTags.split(',')
       searchQueryStr.push(
-        `tags.id = all (select id from tags where id in (${searchTags}))`
+        `tags.id = all (select id from tags where id in (${searchTagsArray.map(tag => `'${tag}'`).join(',')}))`
       );
     }
 
@@ -98,7 +84,7 @@ router.get(
       page,
     });
     res.json({
-      listings: result,
+      data: result,
       total,
     });
   })
@@ -119,15 +105,15 @@ router.get(
       group by listings.id
     `;
     const result = await db.query(listingQueryStr, [id]);
-    
+
     if (!result?.rows?.[0]) {
-      res.status(404).json({ 
-        error: 'Listing not found',
-        message: 'The requested listing could not be found or is not active'
+      res.status(404).json({
+        error: "Listing not found",
+        message: "The requested listing could not be found or is not active",
       });
       return;
     }
-    
+
     res.json(result.rows[0]);
   })
 );

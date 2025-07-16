@@ -3,7 +3,7 @@ import { useUser } from "@/providers/UserProvider";
 import { useOCAuth } from "@opencampus/ocid-connect-js";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
-import { isDemoMode } from "@/db/utils";
+import { isDemoMode } from "@/utils";
 import DemoLoginPage from "@/components/login/DemoLoginPage";
 import LoginPage from "@/components/login/LoginPage";
 

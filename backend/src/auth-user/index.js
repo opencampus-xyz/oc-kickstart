@@ -36,8 +36,9 @@ router.get(
 
     let searchQueryStr = [];
     if (searchTags) {
+      const searchTagsArray = searchTags.split(',')
       searchQueryStr.push(
-        `tags.id = all (select id from tags where id in (${searchTags}))`
+        `tags.id = all (select id from tags where id in (${searchTagsArray.map(tag => `'${tag}'`).join(',')}))`
       );
     }
 
@@ -71,7 +72,7 @@ router.get(
       [req.user.id]
     );
     res.json({
-      listings: result,
+      data: result,
       total,
     });
   })

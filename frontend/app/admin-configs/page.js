@@ -1,16 +1,16 @@
 "use client";
 import ProtectedRoute from "@/components/common/ProtectedRoute";
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import { useUser } from "@/providers/UserProvider";
 import { Button, TextField } from "@mui/material";
 import { useRouter } from "next/navigation";
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
+import { useApi } from "@/providers/ApiProvider";
 import "../globals.css";
 
 export default function AdminConfigs() {
   const [adminOCIDs, setAdminOCIDs] = useState("");
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
   const { isInitialized, isMasterAdmin } = useUser();
   const router = useRouter();
 
@@ -23,13 +23,7 @@ export default function AdminConfigs() {
 
   const handleSaveConfigs = async () => {
     try {
-      await fetchWithAuth("/master-admin/admin-configs", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ adminOCIDs }),
-      });
+      await apiService.setAdminOCIDs(adminOCIDs);
       enqueueSnackbar("Successfully updated admin configs", {
         variant: "success",
       });
@@ -39,8 +33,7 @@ export default function AdminConfigs() {
   };
 
   const getAdminConfigs = async () => {
-    const response = await fetchWithAuth("/master-admin/admin-configs");
-    const data = await response.json();
+    const data = await apiService.getAdminConfig();
     setAdminOCIDs(data?.admin_ocids?.join(",") ?? []);
   };
 

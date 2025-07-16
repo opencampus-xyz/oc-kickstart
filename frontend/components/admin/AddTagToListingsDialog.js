@@ -1,4 +1,3 @@
-import useAuthenticatedFetch from "@/hooks/useAuthenticatedFetch";
 import {
   Button,
   Dialog,
@@ -14,16 +13,16 @@ import {
 import { enqueueSnackbar } from "notistack";
 import { useEffect, useState } from "react";
 import styles from "./CreateEditTagDialog.module.css";
+import { useApi } from "@/providers/ApiProvider";
 
 export const AddTagToListingsDialog = ({ open, onClose, tag, refetch }) => {
   const [selectedListings, setSelectedListings] = useState([]);
   const [listings, setListings] = useState([]);
-  const fetchWithAuth = useAuthenticatedFetch();
+  const { apiService } = useApi();
 
   const getActiveListings = async () => {
-    const response = await fetchWithAuth("/public/listings");
-    const data = await response.json();
-    setListings(data.listings);
+    const {data} = await apiService.adminGetListings();
+    setListings(data);
   };
 
   useEffect(() => {
@@ -37,16 +36,7 @@ export const AddTagToListingsDialog = ({ open, onClose, tag, refetch }) => {
 
   const handleAddTagToListings = async () => {
     try {
-      await fetchWithAuth("/admin/add-tag", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          tag: tag.id,
-          listings: selectedListings,
-        }),
-      });
+      await apiService.adminAddTagToListings(tag.id, selectedListings);
       enqueueSnackbar("Tag added successfully", {
         variant: "success",
       });

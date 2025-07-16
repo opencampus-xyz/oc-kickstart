@@ -31,7 +31,7 @@ app.post("/signup", async (req, res, next) => {
     await signup(name, email, ocid);
     res.json({ status: "successful" });
   } catch (error) {
-    next(error);
+    res.status(400).json({ error: {message: error.message} })
   }
 });
 
