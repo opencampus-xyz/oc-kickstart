@@ -290,7 +290,7 @@ router.put(
     const client = await db.connect();
     await client.query("BEGIN");
     try {
-      await db.query(
+      await client.query(
         "UPDATE listings SET name = $1, description = $2, trigger_mode = $3, sign_ups_limit = $4, vc_properties = $5 WHERE id = $6",
         [
           name,
