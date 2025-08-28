@@ -3,6 +3,9 @@
 This is a template application using OCID connect and OC Achievements.
 This project uses NextJS, ExpressJS and PostgreSQL.
 
+## Demo Site
+You may try it out in https://oc-kickstart-demo.opencampus.xyz.
+
 ## Pre-requisites
 
 Please make sure you have nodeJS, yarn and docker installed, and have at least one OCID as the master admin OCID.
