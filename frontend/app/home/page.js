@@ -167,7 +167,7 @@ export default function Home() {
 
   return (
     <div>
-      <img src="/assets/banner.jpg" height="300" width="100%" />
+      <img src="/assets/banner.jpeg" height="300" width="100%" />
       <div className={styles.pageContainer}>
         <div className={styles.searchContainer}>
           <SearchBar
