@@ -20,6 +20,7 @@ export const ApiProvider = ({ children }) => {
         case "indexeddb":
             const indexedDbServiceProvider = new IndexedDbServiceProvider(authState?.OCId);
             await indexedDbServiceProvider.init();
+            setIsApiAuthenticated(!!authState?.OCId)
             setApiService(indexedDbServiceProvider);
             break;
         case "backend":
